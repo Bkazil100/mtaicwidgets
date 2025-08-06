@@ -9,11 +9,11 @@
 
 <style>
   :root{
-    --bar-bg:#263467;        /* strip colour                  */
-    --fg:#ffffff;            /* headline text                 */
-    --accent:#d9a33c;        /* source / age text             */
-    --height:48px;           /* default bar height            */
-    --speed:40s;             /* will be reset by JS           */
+    --bar-bg:#263467;   /* strip colour               */
+    --fg:#ffffff;       /* headline text colour       */
+    --accent:#d9a33c;   /* source / age colour        */
+    --height:48px;      /* bar height                 */
+    --speed:40s;        /* ⬅ one constant scroll rate */
   }
 
   html,body{
@@ -26,14 +26,16 @@
 
   /* ticker strip */
   #ticker{
-    display:inline-block;white-space:nowrap;line-height:var(--height);
+    display:inline-block;
+    white-space:nowrap;
+    line-height:var(--height);
     animation:scroll var(--speed) linear infinite;
   }
   #ticker:hover{animation-play-state:paused;}
 
   @keyframes scroll{
     0%   {transform:translateX(0);}
-    100% {transform:translateX(-50%);}  /* html+html gives seamless loop */
+    100% {transform:translateX(-50%);}   /* html+html gives seamless loop */
   }
 
   .divider,.meta,.headline{display:inline-block;vertical-align:middle;}
@@ -58,76 +60,64 @@
     <div id="ticker">Loading…</div>
   </div>
 
-  <script src="https://static.sekandocdn.net/static/feednami/feednami-client-v1.1.js"></script>
-  <script>
-  /* Google News – World topic (Canada edition, English) */
-  const FEED = 'https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en';
+<script>
+/* — settings — */
+const FEED  = 'https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en',
+      PROXY = 'https://api.allorigins.win/raw?url=';   // open CORS proxy
 
-  const TICK = document.getElementById('ticker'),
-        ROOT = document.documentElement;
+const TICK  = document.getElementById('ticker');
 
-  /* m / h / d ago */
-  const ago = d=>{
-    const m=Math.floor((Date.now()-d.getTime())/6e4);
-    return m<60 ? m+'m' : m<1440 ? Math.floor(m/60)+'h'
-                                 : Math.floor(m/1440)+'d';
-  };
+/* helper: m / h / d ago */
+const ago = d=>{
+  const m = Math.floor((Date.now()-d.getTime())/60000);
+  return m < 60 ? m+'m'
+       : m < 1440 ? Math.floor(m/60)+'h'
+                  : Math.floor(m/1440)+'d';
+};
 
-  /* adaptive speed: 10 s base + 0.04 s per item */
-  const setSpeed = n=>{
-    ROOT.style.setProperty('--speed',(10+0.04*n)+'s');
-  };
+/* fetch + parse XML, then build HTML */
+function fetchFeed(){
+  fetch(PROXY + encodeURIComponent(FEED))
+    .then(r=>r.text())
+    .then(xmlStr=>{
+      const doc   = new DOMParser().parseFromString(xmlStr,'application/xml'),
+            items = [...doc.querySelectorAll('item')];
 
-  function render(list){
-    if(!list.length){TICK.textContent='(no items)';return;}
-    setSpeed(list.length);
+      if(!items.length){TICK.textContent='(no items)';return;}
 
-    const html=list.slice(0,25).map((it,i)=>{
-      const rawTitle=(it.title||'').trim(),
-            link    =(it.link ||'').trim();
-      if(!rawTitle||!link) return '';
+      const html = items.slice(0,25).map((it,i)=>{
+        const rawTitle = it.querySelector('title')?.textContent.trim() || '',
+              link     = it.querySelector('link') ?.textContent.trim() || '';
+        if(!rawTitle || !link) return '';
 
-      /* Prefer <source>, else split “Headline – Source” */
-      let source='news.google';
-      if(it.source && it.source.title){ source = it.source.title.trim(); }
-      else{
-        const tmp=rawTitle.split(' - ');
-        if(tmp.length>1){ source = tmp.pop(); }
-      }
-      const title = rawTitle.replace(/\s+-\s+[^-]+$/,'');
+        /* prefer <source>; else split “Headline – Source” */
+        let source = it.querySelector('source')?.textContent.trim() || 'news.google';
+        if(source==='news.google'){
+          const split = rawTitle.split(' - ');
+          if(split.length>1){ source = split.pop(); }
+        }
+        const title = rawTitle.replace(/\s+-\s+[^-]+$/,'');   // title w/o source
 
-      let dt=new Date(it.pubDate||it.publishedDate||it.date||0);
-      if(isNaN(dt)) dt=new Date();
+        let dt = new Date(it.querySelector('pubDate')?.textContent || 0);
+        if(isNaN(dt)) dt = new Date();
 
-      return `${i?'<span class="divider"></span>':''}
-              <span class="meta">${source} · ${ago(dt)}</span>
-              <a class="headline" href="${link}" title="${title}"
-                 target="_blank" rel="noopener">${title}</a>`;
-    }).join('');
+        return `${i?'<span class="divider"></span>':''}
+                <span class="meta">${source} · ${ago(dt)}</span>
+                <a class="headline" href="${link}" title="${title}"
+                   target="_blank" rel="noopener">${title}</a>`;
+      }).join('');
 
-    TICK.innerHTML = html + html;   /* duplicate for endless scroll */
-  }
-
-  const retry=()=>setTimeout(fetchFeed,300000);  /* 5 min */
-
-  function fetchFeed(){
-    feednami.load(FEED).then(r=>{
-      if(r.error) throw new Error(r.error);
-      render(r.feed.entries);
-    }).catch(()=>{
-      fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(FEED))
-        .then(r=>r.json()).then(j=>{
-          if(j.status!=='ok') throw new Error(j.message);
-          render(j.items);
-        }).catch(e=>{
-          console.error(e.message||e);
-          TICK.textContent='Feed error – retrying…';
-          retry();
-        });
+      /* duplicate once for seamless scroll */
+      TICK.innerHTML = html + html;
+    })
+    .catch(err=>{
+      console.error(err);
+      TICK.textContent = 'Feed error – retrying…';
+      setTimeout(fetchFeed, 300000);          // retry every 5 min
     });
-  }
+}
 
-  fetchFeed();
-  </script>
+fetchFeed();
+</script>
 </body>
 </html>
