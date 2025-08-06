@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>CBC World News Ticker</title>
+<title>World News Ticker (Google News feed)</title>
 
 <!-- Lato font -->
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600&display=swap" rel="stylesheet">
@@ -13,17 +13,15 @@
     --fg:#ffffff;            /* headline text colour        */
     --accent:#d9a33c;        /* source / age text colour    */
     --height:48px;           /* default bar height          */
-    --speed:40s;             /* will be overwritten by JS   */
+    --speed:40s;             /* will be reset by JS         */
   }
 
-  /* base layout */
   html,body{
     margin:0;
     height:var(--height);
     overflow:hidden;
     font-family:'Lato',system-ui,sans-serif;
   }
-
   #wrap{
     background:var(--bar-bg);
     width:100%;
@@ -35,42 +33,25 @@
   #ticker{
     display:inline-block;
     white-space:nowrap;
-    line-height:var(--height);            /* vertical centring           */
+    line-height:var(--height);
     animation:scroll var(--speed) linear infinite;
   }
-  #ticker:hover{animation-play-state:paused;} /* allow reading / clicking  */
+  #ticker:hover{animation-play-state:paused;}
 
   @keyframes scroll{
     0%   { transform:translateX(0); }
-    100% { transform:translateX(-50%); }   /* seamless loop (html+html)  */
+    100% { transform:translateX(-50%); }      /* seamless loop (html+html) */
   }
 
-  /* shared vertical-align */
   .divider,.meta,.headline{display:inline-block;vertical-align:middle;}
-
-  .divider{
-    border-left:1px solid var(--fg);
-    margin:0 .75rem;
-    height:60%;
-  }
-
-  .meta{
-    font-size:.85rem;
-    font-weight:400;
-    color:var(--accent);
-    margin-left:.5rem;
-  }
-
+  .divider{border-left:1px solid var(--fg);margin:0 .75rem;height:60%;}
+  .meta{font-size:.85rem;font-weight:400;color:var(--accent);margin-left:.5rem;}
   .headline{
-    color:var(--fg);
-    font-size:1.15rem;
-    font-weight:600;
-    margin-left:.5rem;
-    letter-spacing:.5px;
-    text-decoration:none;
+    color:var(--fg);font-size:1.15rem;font-weight:600;margin-left:.5rem;
+    letter-spacing:.5px;text-decoration:none;
   }
 
-  /* ——— responsive (≤ 500 px) ——— */
+  /* small-screen tweak */
   @media (max-width:500px){
     :root{--height:40px;}
     .headline{font-size:1rem;}
@@ -80,69 +61,65 @@
 </head>
 
 <body>
-  <!-- role + aria so screen-readers announce items politely -->
   <div id="wrap" role="log" aria-live="polite">
     <div id="ticker">Loading…</div>
   </div>
 
   <script src="https://static.sekandocdn.net/static/feednami/feednami-client-v1.1.js"></script>
   <script>
-  const FEED = 'https://www.cbc.ca/webfeed/rss/rss-world',
-        TICK = document.getElementById('ticker'),
+  /* Google News – World (Canadian English edition) */
+  const FEED =
+    'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqYjJ4a0VnSmxiaWdBQVAB?hl=en-CA&gl=CA&ceid=CA:en';
+
+  const TICK = document.getElementById('ticker'),
         ROOT = document.documentElement;
 
-  /* util – “m / h / d ago” */
+  /* m / h / d ago */
   const ago = d=>{
     const m=Math.floor((Date.now()-d.getTime())/6e4);
     return m<60 ? m+'m' : m<1440 ? Math.floor(m/60)+'h'
                                  : Math.floor(m/1440)+'d';
   };
 
-  /* adjust speed: 10 s base + 0.04 s per headline */
+  /* adapt speed: 10 s base + 0.04 s per item */
   const setSpeed = n=>{
-    const s = 10 + 0.04 * n;                  /* tweak coefficients as desired */
-    ROOT.style.setProperty('--speed', s + 's');
+    ROOT.style.setProperty('--speed', (10+0.04*n)+'s');
   };
 
-  /* build ticker HTML */
   function render(list){
     if(!list.length){TICK.textContent='(no items)';return;}
 
-    setSpeed(list.length);                    /* adaptive speed */
+    setSpeed(list.length);
 
     const html=list.slice(0,25).map((it,i)=>{
-      const title=(it.title||'').trim(),
-            link =(it.link ||'').trim();
-      if(!title||!link) return '';
+      const rawTitle=(it.title||'').trim(),
+            link    =(it.link ||'').trim();
+      if(!rawTitle||!link) return '';
 
+      /* Google News titles end with ' - Source' → split it out */
+      let title=rawTitle, source='news.google';
+      const parts=rawTitle.split(' - ');
+      if(parts.length>1){ source=parts.pop(); title=parts.join(' - '); }
+
+      /* publication date */
       let dt=new Date(it.pubDate||it.publishedDate||it.date||0);
       if(isNaN(dt)) dt=new Date();
 
-      let host='cbc.ca';
-      try{host=new URL(link).hostname.replace(/^www\./,'');}catch{}
-
       return `${i?'<span class="divider"></span>':''}
-              <span class="meta">${host} · ${ago(dt)}</span>
-              <a class="headline" href="${link}" title="${title}" target="_blank" rel="noopener">
-                ${title}
-              </a>`;
+              <span class="meta">${source} · ${ago(dt)}</span>
+              <a class="headline" href="${link}" title="${title}"
+                 target="_blank" rel="noopener">${title}</a>`;
     }).join('');
 
-    TICK.innerHTML = html + html;             /* duplicate for seamless loop */
+    TICK.innerHTML = html + html;            /* duplicate for seamless loop */
   }
 
-  /* error → show, retry in 5 min */
-  const handleError = msg=>{
-    console.error(msg);
-    TICK.textContent = 'Feed error – retrying…';
-    setTimeout(fetchFeed, 300000);            /* 300 000 ms = 5 min */
-  };
+  const retry = ()=>setTimeout(fetchFeed, 300000);  /* 5 min */
 
-  /* fetch logic (Feednami → rss2json fallback) */
   function fetchFeed(){
-    feednami.load(FEED).then(res=>{
-      if(res.error) throw new Error(res.error);
-      render(res.feed.entries);
+    feednami.load(FEED).then(r=>{
+      if(r.error) throw new Error(r.error);
+      render(r.feed.entries);
     }).catch(()=>{
       fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(FEED))
         .then(r=>r.json())
@@ -150,11 +127,15 @@
           if(j.status!=='ok') throw new Error(j.message);
           render(j.items);
         })
-        .catch(e=>handleError(e.message));
+        .catch(e=>{
+          console.error(e.message||e);       /* visible status + retry */
+          TICK.textContent='Feed error – retrying…';
+          retry();
+        });
     });
   }
 
-  fetchFeed();           /* initial call */
+  fetchFeed();
   </script>
 </body>
 </html>
