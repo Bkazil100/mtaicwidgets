@@ -12,29 +12,45 @@
     --fg:#ffffff;
     --accent:#d9a33c;
     --height:48px;
-    --speed:250s;          /* fixed scroll rate */
+    --speed:40s;          /* fixed scroll rate */
   }
 
   html,body{margin:0;height:var(--height);overflow:hidden;font-family:'Lato',system-ui,sans-serif;}
   #wrap{background:var(--bar-bg);width:100%;height:100%;overflow:hidden;}
 
-  /* ticker strip */
+  /* ticker strip now uses flex so every child is centred vertically */
   #ticker{
-    display:inline-block;
+    display:inline-flex;             /* ⬅ changed from inline-block  */
+    align-items:center;              /* vertical centring            */
     white-space:nowrap;
     line-height:var(--height);
     animation:scroll var(--speed) linear infinite;
   }
   @keyframes scroll{
     0%   {transform:translateX(0);}
-    100% {transform:translateX(-50%);}   /* html+html for seamless loop */
+    100% {transform:translateX(-50%);}        /* html+html for seamless loop */
   }
 
-  .divider,.meta,.headline{display:inline-block;vertical-align:middle;}
-  .divider{border-left:1px solid var(--fg);margin:0 .75rem;height:60%;}
-  .meta   {font-size:.85rem;font-weight:400;color:var(--accent);margin-left:.5rem;}
+  .divider,.meta,.headline{
+    display:inline-flex;             /* so divider can centre too    */
+    align-items:center;
+  }
+  .divider{
+    border-left:1px solid var(--fg);
+    margin:0 .75rem;
+    height:60%;
+  }
+  .meta{
+    font-size:.85rem;
+    font-weight:400;
+    color:var(--accent);
+    margin-left:.5rem;
+  }
   .headline{
-    color:var(--fg);font-size:1.15rem;font-weight:600;margin-left:.5rem;
+    color:var(--fg);
+    font-size:1.15rem;
+    font-weight:600;
+    margin-left:.5rem;
     letter-spacing:.5px;
   }
 
@@ -54,11 +70,9 @@
 
 <script>
 const FEED  = 'https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en',
-      PROXY = 'https://api.allorigins.win/raw?url=';   /* open CORS proxy */
-
+      PROXY = 'https://api.allorigins.win/raw?url=';   // open CORS proxy
 const TICK  = document.getElementById('ticker');
 
-/* m / h / d ago */
 const ago = d=>{
   const m=Math.floor((Date.now()-d.getTime())/60000);
   return m<60 ? m+'m' : m<1440 ? Math.floor(m/60)+'h'
@@ -78,7 +92,6 @@ function fetchFeed(){
         const raw = it.querySelector('title')?.textContent.trim() || '';
         if(!raw) return '';
 
-        /* headline / source split */
         let source = it.querySelector('source')?.textContent.trim() || 'news.google',
             title  = raw;
         if(source==='news.google'){
@@ -93,12 +106,12 @@ function fetchFeed(){
                 <span class="headline">${title}</span>`;
       }).join('');
 
-      TICK.innerHTML = html + html;      /* duplicate for endless scroll */
+      TICK.innerHTML = html + html;           /* duplicate for seamless loop */
     })
     .catch(err=>{
       console.error(err);
       TICK.textContent='Feed error – retrying…';
-      setTimeout(fetchFeed,300000);      /* retry in 5 min */
+      setTimeout(fetchFeed,300000);           /* retry every 5 min */
     });
 }
 
