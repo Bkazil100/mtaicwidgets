@@ -1,73 +1,87 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>CBC World News Ticker</title>
+<meta charset="utf-8">
+<title>CBC World News Ticker</title>
 
-  <!-- ── palette & sizing ── -->
-  <style>
-    :root{
-      --bar-bg: #263467;   /* ticker strip background           */
-      --fg:     #ffffff;   /* headline text                     */
-      --accent: #efb54b;   /* source / meta text (gold)         */
-      --height: 48px;      /* strip height                      */
-      --speed:  40s;       /* scroll duration                   */
-    }
+<!-- ── palette & sizing ── -->
+<style>
+  :root{
+    --bar-bg:#263467;
+    --fg:#ffffff;
+    --accent:#efb54b;
+    --height:48px;
+    --speed:40s;
+  }
+  html,body{margin:0;height:var(--height);overflow:hidden;}
+  #wrap{background:var(--bar-bg);width:100%;height:var(--height);overflow:hidden;}
 
-    /* page scaffold (transparent background) */
-    html,body{margin:0;height:var(--height);overflow:hidden;}
+  #ticker{display:inline-block;white-space:nowrap;line-height:var(--height);
+          animation:scroll var(--speed) linear infinite;}
+  @keyframes scroll{from{transform:translateX(100%)}to{transform:translateX(-100%)}}   
 
-    #wrap{background:var(--bar-bg);width:100%;height:var(--height);overflow:hidden;}
-
-    /* ticker animation */
-    #ticker{display:inline-block;white-space:nowrap;line-height:var(--height);
-            animation:scroll var(--speed) linear infinite;}
-    @keyframes scroll{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
-
-    /* headline + meta */
-    .divider{border-left:1px solid var(--fg);margin:0 1rem;}
-    .meta{font-size:0.85rem;color:var(--accent);letter-spacing:.2px;}
-    .headline{color:var(--fg);font-size:1.15rem;font-weight:600;margin-left:.75rem;
-              text-transform:uppercase;text-decoration:none;}
-  </style>
+  .divider{border-left:1px solid var(--fg);margin:0 1rem;}
+  .meta{font-size:.85rem;color:var(--accent)}
+  .headline{color:var(--fg);font-size:1.15rem;font-weight:600;margin-left:.75rem;
+            text-transform:uppercase;text-decoration:none}
+</style>
 </head>
 
 <body>
   <div id="wrap"><div id="ticker">Loading…</div></div>
 
-  <!-- Feednami converts RSS → JSON in-browser -->
+  <!-- Feednami (primary) -->
   <script src="https://static.sekandocdn.net/static/feednami/feednami-client-v1.1.js"></script>
   <script>
-    const FEED_URL = 'https://www.cbc.ca/webfeed/rss/rss-world';
+  const FEED_URL = 'https://www.cbc.ca/webfeed/rss/rss-world';
+  const TICKER   = document.getElementById('ticker');
 
-    /* utility: “2h”, “5m”, “3d” */
-    function timeAgo(date){
-      const secs = (Date.now() - date.getTime())/1000;
-      const mins = Math.floor(secs/60);
-      if (mins < 60) return mins + 'm';
-      const hrs  = Math.floor(mins/60);
-      if (hrs  < 24) return hrs + 'h';
-      return Math.floor(hrs/24) + 'd';
-    }
+  /** human-friendly “ago” tag */
+  const timeAgo = d => {
+    const mins = Math.floor((Date.now()-d.getTime())/60000);
+    return mins<60 ? mins+'m' : mins<1440 ? Math.floor(mins/60)+'h'
+                                          : Math.floor(mins/1440)+'d';
+  };
 
-    feednami.load(FEED_URL).then(res => {
-      if (res.error){ document.getElementById('ticker').textContent = 'Feed error'; return;}
+  /** build HTML once we have an array of entries */
+  function populate(entries){
+    if(!entries.length){TICKER.textContent='No items in feed';return;}
+    const html = entries.slice(0,25).map((it,i)=>{
+      const ago  = timeAgo(new Date(it.pubDate||it.publishedDate||it.date));
+      const host = new URL(it.link).hostname.replace(/^www\./,'');
+      return `${i?'<span class="divider"></span>':''}
+              <span class="meta">${host}&nbsp;·&nbsp;${ago}</span>
+              <a class="headline" href="${it.link}" target="_blank" rel="noopener">
+                ${it.title.toUpperCase()}
+              </a>`;
+    }).join('');
+    TICKER.innerHTML = html+html;              // duplicate for seamless scroll
+  }
 
-      const html = res.feed.entries.slice(0, 25).map((item, idx) => {
-        const ago  = timeAgo(new Date(item.pubDate || item.date || item.publishedDate));
-        const host = (new URL(item.link)).hostname.replace(/^www\./,'');
-        return `
-          ${idx ? '<span class="divider"></span>' : ''}
-          <span class="meta">${host} &nbsp;·&nbsp; ${ago}</span>
-          <a class="headline" href="${item.link}" target="_blank" rel="noopener">
-            ${item.title.toUpperCase()}
-          </a>`;
-      }).join('');
+  /** show any failure visibly + in console */
+  function fail(msg,err){
+    console.error(msg,err);
+    TICKER.textContent = 'Feed error: '+msg;
+  }
 
-      /* duplicate once for seamless looping */
-      const ticker = document.getElementById('ticker');
-      ticker.innerHTML = html + html;
-    });
+  /* ───── ① try Feednami (client-side) ───── */
+  feednami.load(FEED_URL).then(r=>{
+    if(r.error){ throw new Error(r.error); }
+    populate(r.feed.entries);
+  })
+  /* ───── ② fallback to rss2json (server-side) ───── */
+  .catch(primaryErr=>{
+    console.warn('Feednami failed, switching to rss2json',primaryErr);
+    const api = 'https://api.rss2json.com/v1/api.json?rss_url='+
+                encodeURIComponent(FEED_URL);
+    fetch(api)
+      .then(r=>r.json())
+      .then(j=>{
+        if(j.status!=='ok') throw new Error(j.message||'rss2json error');
+        populate(j.items);
+      })
+      .catch(err=>fail(err.message||'unknown',err));
+  });
   </script>
 </body>
 </html>
