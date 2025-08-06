@@ -36,27 +36,44 @@
   </div>
 
   <script>
-    (async () => {
-      try {
-        /* Use rss2json.com to avoid CORS issues */
-        const url =
-          'https://api.rss2json.com/v1/api.json?rss_url=http://www.cbc.ca/m/rss/topstories.xml';
-        const feed = await fetch(url).then(r => r.json());
+(async () => {
+  const RSS  = 'https://www.cbc.ca/m/rss/topstories.xml';          // HTTPS!
+  const ENDPOINTS = [
+    // 1. rss2json — add an API key later if you like
+    'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(RSS),
 
-        /* Build headline list */
-        const html = feed.items
-          .slice(0, 15)                      // first 15 stories
-          .map(i => `<span class="item">${i.title}</span>`)
-          .join('');
+    // 2. feed2json
+    'https://feed2json.org/convert?url=' + encodeURIComponent(RSS),
 
-        /* Duplicate headlines for seamless loop */
-        const ticker = document.getElementById('ticker');
-        ticker.innerHTML = html + html;
-      } catch (err) {
-        document.getElementById('ticker').textContent =
-          'Unable to load CBC feed.';
+    // 3. AllOrigins raw XML  → we parse it ourselves
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(RSS)
+  ];
+
+  let headlines = null;
+
+  for (const url of ENDPOINTS) {
+    try {
+      if (url.includes('/raw?url=')) {                 // AllOrigins path
+        const xml = await fetch(url).then(r => r.text());
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        headlines = [...doc.querySelectorAll('item > title')]
+                    .map(el => el.textContent);
+      } else {                                        // JSON gateways
+        const j  = await fetch(url).then(r => r.json());
+        headlines = j.items?.map(i => i.title);
       }
-    })();
-  </script>
+      if (headlines?.length) break;                   // success!
+    } catch (_) { /* try the next endpoint */ }
+  }
+
+  const box = document.getElementById('ticker');
+  if (!headlines?.length) { box.textContent = 'Feed temporarily unavailable.'; return; }
+
+  const html = headlines.slice(0, 15)
+                         .map(t => `<span class="item">${t}</span>`)
+                         .join('');
+  box.innerHTML = html + html;                        // duplicate for smooth loop
+})();
+</script>
 </body>
 </html>
