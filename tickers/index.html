@@ -4,24 +4,18 @@
 <meta charset="utf-8">
 <title>World News Ticker – Google News (CA)</title>
 
-<!-- Lato -->
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
   :root{
-    --bar-bg:#263467;   /* strip colour               */
-    --fg:#ffffff;       /* headline text colour       */
-    --accent:#d9a33c;   /* source / age colour        */
-    --height:48px;      /* bar height                 */
-    --speed:250s;        /* ⬅ one constant scroll rate */
+    --bar-bg:#263467;
+    --fg:#ffffff;
+    --accent:#d9a33c;
+    --height:48px;
+    --speed:40s;          /* fixed scroll rate */
   }
 
-  html,body{
-    margin:0;
-    height:var(--height);
-    overflow:hidden;
-    font-family:'Lato',system-ui,sans-serif;
-  }
+  html,body{margin:0;height:var(--height);overflow:hidden;font-family:'Lato',system-ui,sans-serif;}
   #wrap{background:var(--bar-bg);width:100%;height:100%;overflow:hidden;}
 
   /* ticker strip */
@@ -31,11 +25,9 @@
     line-height:var(--height);
     animation:scroll var(--speed) linear infinite;
   }
-  #ticker:hover{animation-play-state:paused;}
-
   @keyframes scroll{
     0%   {transform:translateX(0);}
-    100% {transform:translateX(-50%);}   /* html+html gives seamless loop */
+    100% {transform:translateX(-50%);}   /* html+html for seamless loop */
   }
 
   .divider,.meta,.headline{display:inline-block;vertical-align:middle;}
@@ -43,7 +35,7 @@
   .meta   {font-size:.85rem;font-weight:400;color:var(--accent);margin-left:.5rem;}
   .headline{
     color:var(--fg);font-size:1.15rem;font-weight:600;margin-left:.5rem;
-    letter-spacing:.5px;text-decoration:none;
+    letter-spacing:.5px;
   }
 
   /* phones ≤ 500 px */
@@ -61,59 +53,52 @@
   </div>
 
 <script>
-/* — settings — */
 const FEED  = 'https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en',
-      PROXY = 'https://api.allorigins.win/raw?url=';   // open CORS proxy
+      PROXY = 'https://api.allorigins.win/raw?url=';   /* open CORS proxy */
 
 const TICK  = document.getElementById('ticker');
 
-/* helper: m / h / d ago */
+/* m / h / d ago */
 const ago = d=>{
-  const m = Math.floor((Date.now()-d.getTime())/60000);
-  return m < 60 ? m+'m'
-       : m < 1440 ? Math.floor(m/60)+'h'
-                  : Math.floor(m/1440)+'d';
+  const m=Math.floor((Date.now()-d.getTime())/60000);
+  return m<60 ? m+'m' : m<1440 ? Math.floor(m/60)+'h'
+                               : Math.floor(m/1440)+'d';
 };
 
-/* fetch + parse XML, then build HTML */
 function fetchFeed(){
-  fetch(PROXY + encodeURIComponent(FEED))
+  fetch(PROXY+encodeURIComponent(FEED))
     .then(r=>r.text())
-    .then(xmlStr=>{
-      const doc   = new DOMParser().parseFromString(xmlStr,'application/xml'),
+    .then(xml=>{
+      const doc   = new DOMParser().parseFromString(xml,'application/xml'),
             items = [...doc.querySelectorAll('item')];
 
       if(!items.length){TICK.textContent='(no items)';return;}
 
       const html = items.slice(0,25).map((it,i)=>{
-        const rawTitle = it.querySelector('title')?.textContent.trim() || '',
-              link     = it.querySelector('link') ?.textContent.trim() || '';
-        if(!rawTitle || !link) return '';
+        const raw = it.querySelector('title')?.textContent.trim() || '';
+        if(!raw) return '';
 
-        /* prefer <source>; else split “Headline – Source” */
-        let source = it.querySelector('source')?.textContent.trim() || 'news.google';
+        /* headline / source split */
+        let source = it.querySelector('source')?.textContent.trim() || 'news.google',
+            title  = raw;
         if(source==='news.google'){
-          const split = rawTitle.split(' - ');
-          if(split.length>1){ source = split.pop(); }
+          const parts = raw.split(' - ');
+          if(parts.length>1){ source = parts.pop(); title = parts.join(' - '); }
         }
-        const title = rawTitle.replace(/\s+-\s+[^-]+$/,'');   // title w/o source
 
-        let dt = new Date(it.querySelector('pubDate')?.textContent || 0);
-        if(isNaN(dt)) dt = new Date();
+        const dt = new Date(it.querySelector('pubDate')?.textContent || Date.now());
 
         return `${i?'<span class="divider"></span>':''}
                 <span class="meta">${source} · ${ago(dt)}</span>
-                <a class="headline" href="${link}" title="${title}"
-                   target="_blank" rel="noopener">${title}</a>`;
+                <span class="headline">${title}</span>`;
       }).join('');
 
-      /* duplicate once for seamless scroll */
-      TICK.innerHTML = html + html;
+      TICK.innerHTML = html + html;      /* duplicate for endless scroll */
     })
     .catch(err=>{
       console.error(err);
-      TICK.textContent = 'Feed error – retrying…';
-      setTimeout(fetchFeed, 300000);          // retry every 5 min
+      TICK.textContent='Feed error – retrying…';
+      setTimeout(fetchFeed,300000);      /* retry in 5 min */
     });
 }
 
