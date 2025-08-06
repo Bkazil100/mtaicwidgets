@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>CBC World News Ticker</title>
 
-<!-- Lato font -->
+<!-- Google Font – Lato -->
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
@@ -31,20 +31,39 @@
     overflow:hidden;
   }
 
+  /* ── ticker strip ── */
   #ticker{
-    display:inline-block;
+    display:inline-block;               /* required for transform scroll      */
     white-space:nowrap;
-    line-height:var(--height);
+    line-height:var(--height);          /* centers everything vertically      */
     animation:scroll var(--speed) linear infinite;
   }
-  /* start on-screen, move left by half width for seamless loop */
+  /* start on-screen, slide left by half width for seamless loop */
   @keyframes scroll{
     0%   { transform:translateX(0); }
     100% { transform:translateX(-50%); }
   }
 
-  .divider{border-left:1px solid var(--fg);margin:0 1rem;}
-  .meta{font-size:.85rem;color:var(--accent)}
+  /* ensure every part shares the same vertical baseline */
+  .divider,
+  .meta,
+  .headline{
+    display:inline-block;
+    vertical-align:middle;
+  }
+
+  .divider{
+    border-left:1px solid var(--fg);
+    margin:0 1rem;
+    height:60%;                          /* shorter bar looks nicer */
+  }
+
+  .meta{
+    font-size:.85rem;
+    color:var(--accent);
+    margin-left:.5rem;
+  }
+
   .headline{
     color:var(--fg);
     font-size:1.15rem;
@@ -65,50 +84,60 @@
   const FEED = 'https://www.cbc.ca/webfeed/rss/rss-world',
         OUT  = document.getElementById('ticker');
 
-  /* “m/h/d ago” formatter */
-  const ago = d=>{
-    const m=Math.floor((Date.now()-d.getTime())/6e4);
-    return m<60     ? m+'m'
-         : m<1440   ? Math.floor(m/60)+'h'
-                    ? Math.floor(m/1440)+'d';
-  };
+  /* simple “m / h / d ago” */
+  function timeAgo(date){
+    const mins = Math.floor((Date.now() - date.getTime()) / 60000);
+    if (mins < 60)   return mins + 'm';
+    const hrs = Math.floor(mins / 60);
+    if (hrs  < 24)   return hrs  + 'h';
+    return Math.floor(hrs / 24) + 'd';
+  }
 
   /* build ticker HTML */
-  function render(list){
-    if(!list.length){OUT.textContent='(no items)';return;}
-    const html=list.slice(0,25).map((it,i)=>{
-      const title=(it.title||'').trim(),
-            link =(it.link ||'').trim();
-      if(!title||!link)return'';
-      let date=new Date(it.pubDate||it.publishedDate||it.date||0);
-      if(isNaN(date))date=new Date();
-      let host='cbc.ca';
-      try{host=new URL(link).hostname.replace(/^www\./,'');}catch{}
-      return `${i?'<span class="divider"></span>':''}
-              <span class="meta">${host}&nbsp;·&nbsp;${ago(date)}</span>
+  function render(entries){
+    if (!entries.length){ OUT.textContent = '(no items)'; return; }
+
+    const html = entries.slice(0, 25).map((it, i) => {
+      const title = (it.title || '').trim();
+      const link  = (it.link  || '').trim();
+      if (!title || !link) return '';
+
+      /* publication date */
+      let dt = new Date(it.pubDate || it.publishedDate || it.date || 0);
+      if (isNaN(dt)) dt = new Date();
+
+      /* hostname */
+      let host = 'cbc.ca';
+      try { host = new URL(link).hostname.replace(/^www\./,''); } catch {}
+
+      return `${i ? '<span class="divider"></span>' : ''}
+              <span class="meta">${host} · ${timeAgo(dt)}</span>
               <a class="headline" href="${link}" target="_blank" rel="noopener">
                 ${title.toUpperCase()}
               </a>`;
     }).join('');
-    OUT.innerHTML=html+html;   // duplicate for seamless scroll
+
+    /* duplicate once for seamless scroll */
+    OUT.innerHTML = html + html;
   }
 
-  const fail=msg=>{console.error(msg);OUT.textContent='Feed error';};
+  /* fallback handler */
+  const fail = msg => { console.error(msg); OUT.textContent = 'Feed error'; };
 
-  /* ① Feednami (client-side) */
-  feednami.load(FEED).then(r=>{
-    if(r.error)throw new Error(r.error);
-    render(r.feed.entries);
+  /* ① Try Feednami (client-side) */
+  feednami.load(FEED).then(res => {
+    if (res.error) throw new Error(res.error);
+    render(res.feed.entries);
   })
-  /* ② fallback to rss2json (server-side) */
-  .catch(()=>{
-    fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(FEED))
-      .then(r=>r.json())
-      .then(j=>{
-        if(j.status!=='ok')throw new Error(j.message);
+  /* ② Fallback to rss2json (server proxy) */
+  .catch(() => {
+    fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(FEED))
+      .then(r => r.json())
+      .then(j => {
+        if (j.status !== 'ok') throw new Error(j.message);
         render(j.items);
       })
-      .catch(e=>fail(e.message));
+      .catch(e => fail(e.message));
   });
   </script>
 </body>
