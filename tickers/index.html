@@ -12,7 +12,7 @@
     --fg:#ffffff;
     --accent:#d9a33c;
     --height:48px;
-    --speed:40s;
+    --speed:250s;            /* ← constant scroll rate */
   }
 
   html,body{
@@ -22,12 +22,15 @@
     font-family:'Lato',system-ui,sans-serif;
   }
 
+  /* bar container – now flex so the strip is centred vertically */
   #wrap{
     background:var(--bar-bg);
     width:100%;
     height:100%;
     overflow:hidden;
-    pointer-events:none;           /* visual-only strip */
+    pointer-events:none;     /* visual-only */
+    display:flex;
+    align-items:center;      /* ⬅ vertical centring */
   }
 
   /* scrolling strip */
@@ -39,10 +42,10 @@
   }
   @keyframes scroll{
     0%   {transform:translateX(0);}
-    100% {transform:translateX(-50%);}   /* duplicated list for seamless loop */
+    100% {transform:translateX(-50%);}
   }
 
-  /* elements inside the strip */
+  /* ticker elements */
   .divider,.meta,.headline,.brand{
     display:inline-flex;
     align-items:center;
@@ -65,7 +68,7 @@
     margin-left:.5rem;
     letter-spacing:.5px;
   }
-  .brand{                       /* placeholder style */
+  .brand{
     color:var(--accent);
     font-size:1.15rem;
     font-weight:600;
@@ -102,39 +105,36 @@ const ago = d=>{
 };
 
 function fetchFeed(){
-  fetch(PROXY + encodeURIComponent(FEED))
-    .then(r => r.text())
-    .then(xml => {
-      const doc   = new DOMParser().parseFromString(xml,'application/xml'),
-            items = [...doc.querySelectorAll('item')];
+  fetch(PROXY+encodeURIComponent(FEED))
+    .then(r=>r.text())
+    .then(xml=>{
+      const doc=[...new DOMParser().parseFromString(xml,'application/xml').querySelectorAll('item')];
+      if(!doc.length){TICK.innerHTML='<span class="brand">(no items)</span>';return;}
 
-      if(!items.length){ TICK.innerHTML='<span class="brand">(no items)</span>'; return; }
+      const html=doc.slice(0,25).map((it,i)=>{
+        const raw=it.querySelector('title')?.textContent.trim()||'';
+        if(!raw)return'';
 
-      const html = items.slice(0,25).map((it,i)=>{
-        const raw = it.querySelector('title')?.textContent.trim() || '';
-        if(!raw) return '';
-
-        /* source derivation */
-        let source = it.querySelector('source')?.textContent.trim() || 'news.google',
-            title  = raw;
+        let source=it.querySelector('source')?.textContent.trim()||'news.google',
+            title =raw;
         if(source==='news.google'){
-          const pts = raw.split(' - ');
-          if(pts.length>1){ source = pts.pop(); title = pts.join(' - '); }
+          const p=raw.split(' - ');
+          if(p.length>1){source=p.pop();title=p.join(' - ');}
         }
 
-        const dt = new Date(it.querySelector('pubDate')?.textContent || Date.now());
+        const dt=new Date(it.querySelector('pubDate')?.textContent||Date.now());
 
-        return `${i?'<span class="divider"></span>':''}
+        return`${i?'<span class="divider"></span>':''}
                 <span class="meta">${source} · ${ago(dt)}</span>
                 <span class="headline">${title}</span>`;
       }).join('');
 
-      TICK.innerHTML = html + html;        /* duplicate for endless scroll */
+      TICK.innerHTML=html+html;        /* duplicate for endless scroll */
     })
-    .catch(err=>{
-      console.error(err);
+    .catch(e=>{
+      console.error(e);
       TICK.innerHTML='<span class="brand">Feed error – retrying…</span>';
-      setTimeout(fetchFeed,300000);        /* retry in 5 min */
+      setTimeout(fetchFeed,300000);
     });
 }
 
