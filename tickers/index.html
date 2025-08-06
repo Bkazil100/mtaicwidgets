@@ -1,79 +1,29 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>CBC Top Stories Ticker</title>
-<style>
-  /* Appearance */
-  html,body{margin:0;padding:0}
-  #ticker-wrap{
-    background:#0055a4;      /* blue background */
-    color:#fff;              /* white text   */
-    height:40px;
-    line-height:40px;
-    overflow:hidden;
-    font-family:Arial,sans-serif;
-    font-size:16px;
-    white-space:nowrap;
-  }
-  #ticker{
-    display:inline-block;
-    padding-left:100%;       /* start off-screen */
-    animation:scroll 30s linear infinite;
-  }
-  #ticker .item{margin-right:40px}  /* gap between headlines */
-
-  /* Scrolling animation */
-  @keyframes scroll{
-    0%   {transform:translateX(0)}
-    100% {transform:translateX(-100%)}
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>RSS Ticker</title>
+  <style>
+    body{margin:0;font:14px/40px system-ui;background:#111;color:#fff;overflow:hidden}
+    #ticker{white-space:nowrap;animation:scroll 20s linear infinite}
+    #ticker a{color:#fff;text-decoration:none;margin-right:3rem}
+    @keyframes scroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+  </style>
 </head>
 <body>
-  <div id="ticker-wrap">
-    <div id="ticker">Loading…</div>
-  </div>
+  <div id="ticker">Loading…</div>
 
   <script>
-(async () => {
-  const RSS  = 'https://www.cbc.ca/m/rss/topstories.xml';          // HTTPS!
-  const ENDPOINTS = [
-    // 1. rss2json — add an API key later if you like
-    'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(RSS),
-
-    // 2. feed2json
-    'https://feed2json.org/convert?url=' + encodeURIComponent(RSS),
-
-    // 3. AllOrigins raw XML  → we parse it ourselves
-    'https://api.allorigins.win/raw?url=' + encodeURIComponent(RSS)
-  ];
-
-  let headlines = null;
-
-  for (const url of ENDPOINTS) {
-    try {
-      if (url.includes('/raw?url=')) {                 // AllOrigins path
-        const xml = await fetch(url).then(r => r.text());
-        const doc = new DOMParser().parseFromString(xml, 'text/xml');
-        headlines = [...doc.querySelectorAll('item > title')]
-                    .map(el => el.textContent);
-      } else {                                        // JSON gateways
-        const j  = await fetch(url).then(r => r.json());
-        headlines = j.items?.map(i => i.title);
-      }
-      if (headlines?.length) break;                   // success!
-    } catch (_) { /* try the next endpoint */ }
-  }
-
-  const box = document.getElementById('ticker');
-  if (!headlines?.length) { box.textContent = 'Feed temporarily unavailable.'; return; }
-
-  const html = headlines.slice(0, 15)
-                         .map(t => `<span class="item">${t}</span>`)
-                         .join('');
-  box.innerHTML = html + html;                        // duplicate for smooth loop
-})();
-</script>
+    const FEED = encodeURIComponent('https://feeds.bbci.co.uk/news/world/rss.xml');   // <-- your RSS URL
+    fetch(`https://api.rss2json.com/v1/api.json?rss_url=${FEED}`)                    // free RSS->JSON API
+      .then(r => r.json())
+      .then(({items}) => {
+        document.getElementById('ticker').innerHTML =
+          items.slice(0,15)                                   // first 15 headlines
+               .map(i => `<a href="${i.link}" target="_blank">${i.title}</a>`)
+               .join('');
+      })
+      .catch(() => { document.getElementById('ticker').textContent='Feed unavailable'; });
+  </script>
 </body>
 </html>
