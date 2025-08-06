@@ -7,16 +7,16 @@
   <!-- ── palette & sizing ── -->
   <style>
     :root{
-      --outer-bg: #0a0f4d;   /* page background (dark navy)  */
-      --bar-bg:   #263467;   /* ticker strip background      */
-      --fg:       #ffffff;   /* headline text                */
-      --accent:   #efb54b;   /* source / meta text (gold)    */
-      --height:   48px;      /* strip height                 */
-      --speed:    40s;       /* scroll duration              */
+      --bar-bg: #263467;   /* ticker strip background           */
+      --fg:     #ffffff;   /* headline text                     */
+      --accent: #efb54b;   /* source / meta text (gold)         */
+      --height: 48px;      /* strip height                      */
+      --speed:  40s;       /* scroll duration                   */
     }
 
-    /* page scaffold */
-    html,body{margin:0;background:var(--outer-bg);height:var(--height);overflow:hidden;}
+    /* page scaffold (transparent background) */
+    html,body{margin:0;height:var(--height);overflow:hidden;}
+
     #wrap{background:var(--bar-bg);width:100%;height:var(--height);overflow:hidden;}
 
     /* ticker animation */
@@ -35,7 +35,7 @@
 <body>
   <div id="wrap"><div id="ticker">Loading…</div></div>
 
-  <!-- Feednami converts RSS → JSON in-browser (no CORS headaches) -->
+  <!-- Feednami converts RSS → JSON in-browser -->
   <script src="https://static.sekandocdn.net/static/feednami/feednami-client-v1.1.js"></script>
   <script>
     const FEED_URL = 'https://www.cbc.ca/webfeed/rss/rss-world';
@@ -46,7 +46,7 @@
       const mins = Math.floor(secs/60);
       if (mins < 60) return mins + 'm';
       const hrs  = Math.floor(mins/60);
-      if (hrs  < 24) return hrs  + 'h';
+      if (hrs  < 24) return hrs + 'h';
       return Math.floor(hrs/24) + 'd';
     }
 
@@ -54,8 +54,8 @@
       if (res.error){ document.getElementById('ticker').textContent = 'Feed error'; return;}
 
       const html = res.feed.entries.slice(0, 25).map((item, idx) => {
-        const ago   = timeAgo(new Date(item.pubDate || item.date || item.publishedDate));
-        const host  = (new URL(item.link)).hostname.replace(/^www\./,'');
+        const ago  = timeAgo(new Date(item.pubDate || item.date || item.publishedDate));
+        const host = (new URL(item.link)).hostname.replace(/^www\./,'');
         return `
           ${idx ? '<span class="divider"></span>' : ''}
           <span class="meta">${host} &nbsp;·&nbsp; ${ago}</span>
@@ -64,7 +64,7 @@
           </a>`;
       }).join('');
 
-      /* duplicate once so the scroll loop is seamless */
+      /* duplicate once for seamless looping */
       const ticker = document.getElementById('ticker');
       ticker.innerHTML = html + html;
     });
