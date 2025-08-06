@@ -22,26 +22,24 @@
     font-family:'Lato',system-ui,sans-serif;
   }
 
-  /* bar container */
   #wrap{
     background:var(--bar-bg);
     width:100%;
     height:100%;
     overflow:hidden;
     pointer-events:none;
-    display:flex;               /* vertical centring */
+    display:flex;
     align-items:center;
   }
 
-  /* ticker: static centred   ↔  scrolling */
+  /* ticker strip */
   #ticker{
     display:inline-flex;
     align-items:center;
-    justify-content:center;     /* centred while not .running */
     white-space:nowrap;
+    padding-left:12px;                 /* ← add left padding */
   }
   #ticker.running{
-    justify-content:flex-start; /* align left when scrolling  */
     animation:scroll var(--speed) linear infinite;
   }
   @keyframes scroll{
@@ -49,35 +47,18 @@
     100% {transform:translateX(-50%);}
   }
 
-  /* pieces */
+  /* elements */
   .divider,.meta,.headline,.brand{
     display:inline-flex;
     align-items:center;
   }
-  .divider{
-    border-left:1px solid var(--fg);
-    margin:0 .75rem;
-    height:60%;
+  .divider{border-left:1px solid var(--fg);margin:0 .75rem;height:60%;}
+  .meta   {font-size:.85rem;font-weight:400;color:var(--accent);margin-left:.5rem;}
+  .headline,.brand{
+    font-size:1.15rem;font-weight:600;letter-spacing:.5px;
   }
-  .meta{
-    font-size:.85rem;
-    font-weight:400;
-    color:var(--accent);
-    margin-left:.5rem;
-  }
-  .headline{
-    color:var(--fg);
-    font-size:1.15rem;
-    font-weight:600;
-    margin-left:.5rem;
-    letter-spacing:.5px;
-  }
-  .brand{
-    color:var(--accent);
-    font-size:1.15rem;
-    font-weight:600;
-    letter-spacing:.5px;
-  }
+  .headline{color:var(--fg);margin-left:.5rem;}
+  .brand   {color:var(--accent);}
 
   /* phones ≤ 500 px */
   @media (max-width:500px){
@@ -97,32 +78,27 @@
   </div>
 
 <script>
-const FEED  = 'https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en';
-const PROXY = 'https://api.allorigins.win/raw?url=';
-const TICK  = document.getElementById('ticker');
+const FEED ='https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en';
+const PROXY='https://api.allorigins.win/raw?url=';
+const TICK =document.getElementById('ticker');
 
-const ago = d=>{
-  const m=Math.floor((Date.now()-d.getTime())/60000);
-  return m<60 ? m+'m' : m<1440 ? Math.floor(m/60)+'h' : Math.floor(m/1440)+'d';
-};
+const ago=d=>{const m=Math.floor((Date.now()-d.getTime())/60000);
+              return m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';};
 
-function buildTicker(xml){
+function build(xml){
   const items=[...xml.querySelectorAll('item')].slice(0,25);
-  if(!items.length) return '(no items)';
+  if(!items.length) return '<span class="brand">(no items)</span>';
 
   return items.map((it,i)=>{
-    const raw = it.querySelector('title')?.textContent.trim() || '';
+    const raw=it.querySelector('title')?.textContent.trim()||'';
     if(!raw) return '';
-
-    let source = it.querySelector('source')?.textContent.trim() || 'news.google',
-        title  = raw;
+    let source=it.querySelector('source')?.textContent.trim()||'news.google',
+        title =raw;
     if(source==='news.google'){
-      const p=raw.split(' - '); if(p.length>1){ source=p.pop(); title=p.join(' - ');}
+      const p=raw.split(' - '); if(p.length>1){source=p.pop();title=p.join(' - ');}
     }
-
-    const dt = new Date(it.querySelector('pubDate')?.textContent || Date.now());
-
-    return `${i?'<span class="divider"></span>':''}
+    const dt=new Date(it.querySelector('pubDate')?.textContent||Date.now());
+    return`${i?'<span class="divider"></span>':''}
             <span class="meta">${source} · ${ago(dt)}</span>
             <span class="headline">${title}</span>`;
   }).join('');
@@ -133,10 +109,7 @@ function fetchFeed(){
     .then(r=>r.text())
     .then(x=>{
       const xml=new DOMParser().parseFromString(x,'application/xml');
-      const html=buildTicker(xml);
-
-      /* replace placeholder, start scroll */
-      TICK.innerHTML = html + html;
+      TICK.innerHTML=build(xml)+build(xml);  /* duplicate for loop */
       TICK.classList.add('running');
     })
     .catch(e=>{
