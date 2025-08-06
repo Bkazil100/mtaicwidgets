@@ -4,41 +4,69 @@
   <meta charset="utf-8">
   <title>CBC World News Ticker</title>
 
-  <!-- ── basic look & feel ── -->
+  <!-- ── palette & sizing ── -->
   <style>
     :root{
-      --height:40px;      /* ticker strip height  */
-      --bg:#111;          /* background colour     */
-      --fg:#fff;          /* text/link colour      */
-      --speed:40s;        /* scroll duration       */
+      --outer-bg: #0a0f4d;   /* page background (dark navy)  */
+      --bar-bg:   #263467;   /* ticker strip background      */
+      --fg:       #ffffff;   /* headline text                */
+      --accent:   #efb54b;   /* source / meta text (gold)    */
+      --height:   48px;      /* strip height                 */
+      --speed:    40s;       /* scroll duration              */
     }
-    body{margin:0;background:var(--bg);color:var(--fg);font:14px/var(--height) system-ui,sans-serif;overflow:hidden}
-    #wrap{width:100%;height:var(--height);overflow:hidden}
-    #ticker{display:inline-block;white-space:nowrap;animation:scroll var(--speed) linear infinite}
-    #ticker a{color:var(--fg);text-decoration:none;margin-inline-end:3rem}
+
+    /* page scaffold */
+    html,body{margin:0;background:var(--outer-bg);height:var(--height);overflow:hidden;}
+    #wrap{background:var(--bar-bg);width:100%;height:var(--height);overflow:hidden;}
+
+    /* ticker animation */
+    #ticker{display:inline-block;white-space:nowrap;line-height:var(--height);
+            animation:scroll var(--speed) linear infinite;}
     @keyframes scroll{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
+
+    /* headline + meta */
+    .divider{border-left:1px solid var(--fg);margin:0 1rem;}
+    .meta{font-size:0.85rem;color:var(--accent);letter-spacing:.2px;}
+    .headline{color:var(--fg);font-size:1.15rem;font-weight:600;margin-left:.75rem;
+              text-transform:uppercase;text-decoration:none;}
   </style>
 </head>
 
 <body>
   <div id="wrap"><div id="ticker">Loading…</div></div>
 
-  <!-- Feednami converts RSS → JSON in one call -->
-  <script src="https://static.sekandocdn.net/static/feednami/feednami-client-v1.1.js"></script> <!--  [oai_citation:0‡toolkit.sekando.com](https://toolkit.sekando.com/docs/en/feednami?utm_source=chatgpt.com) -->
+  <!-- Feednami converts RSS → JSON in-browser (no CORS headaches) -->
+  <script src="https://static.sekandocdn.net/static/feednami/feednami-client-v1.1.js"></script>
   <script>
-    const FEED = 'https://www.cbc.ca/webfeed/rss/rss-world';       // RSS source
+    const FEED_URL = 'https://www.cbc.ca/webfeed/rss/rss-world';
 
-    feednami.load(FEED).then(res => {                              //  [oai_citation:1‡api.feednami.com](https://api.feednami.com/?utm_source=chatgpt.com)
-      if (res.error) {
-        document.getElementById('ticker').textContent = 'Feed error: ' + res.error;
-        return;
-      }
-      const items = res.feed.entries.slice(0, 20);                 // grab first 20 headlines
-      const html  = items.map(i =>
-          `<a href="${i.link}" target="_blank" rel="noopener">${i.title}</a>`
-        ).join('');
-      const el = document.getElementById('ticker');
-      el.innerHTML = html + html;                                  // duplicate so scroll is seamless
+    /* utility: “2h”, “5m”, “3d” */
+    function timeAgo(date){
+      const secs = (Date.now() - date.getTime())/1000;
+      const mins = Math.floor(secs/60);
+      if (mins < 60) return mins + 'm';
+      const hrs  = Math.floor(mins/60);
+      if (hrs  < 24) return hrs  + 'h';
+      return Math.floor(hrs/24) + 'd';
+    }
+
+    feednami.load(FEED_URL).then(res => {
+      if (res.error){ document.getElementById('ticker').textContent = 'Feed error'; return;}
+
+      const html = res.feed.entries.slice(0, 25).map((item, idx) => {
+        const ago   = timeAgo(new Date(item.pubDate || item.date || item.publishedDate));
+        const host  = (new URL(item.link)).hostname.replace(/^www\./,'');
+        return `
+          ${idx ? '<span class="divider"></span>' : ''}
+          <span class="meta">${host} &nbsp;·&nbsp; ${ago}</span>
+          <a class="headline" href="${item.link}" target="_blank" rel="noopener">
+            ${item.title.toUpperCase()}
+          </a>`;
+      }).join('');
+
+      /* duplicate once so the scroll loop is seamless */
+      const ticker = document.getElementById('ticker');
+      ticker.innerHTML = html + html;
     });
   </script>
 </body>
