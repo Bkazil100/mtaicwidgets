@@ -4,91 +4,81 @@
 <meta charset="utf-8">
 <title>CBC World News Ticker</title>
 
+<!-- Google Fonts – Lato -->
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600&display=swap" rel="stylesheet">
+
 <style>
   :root{
-    --bar-bg:#263467;   /* ticker bar colour   */
-    --fg:#ffffff;       /* headline text       */
-    --accent:#efb54b;   /* source / age text   */
-    --height:48px;      /* strip height (px)   */
-    --speed:120s;        /* scroll one loop     */
+    --bar-bg:#263467;
+    --fg:#ffffff;
+    --accent:#efb54b;
+    --height:48px;
+    --speed:80s;          /* ← slower scroll */
   }
 
-  html,body{margin:0;height:var(--height);overflow:hidden;}
+  html,body{
+    margin:0;
+    height:var(--height);
+    overflow:hidden;
+    font-family:'Lato',system-ui,sans-serif;  /* ← Lato applied globally */
+  }
+
   #wrap{background:var(--bar-bg);width:100%;height:var(--height);overflow:hidden;}
 
-  #ticker{display:inline-block;white-space:nowrap;line-height:var(--height);
-          animation:scroll var(--speed) linear infinite;}
+  #ticker{
+    display:inline-block;
+    white-space:nowrap;
+    line-height:var(--height);
+    animation:scroll var(--speed) linear infinite;
+  }
   @keyframes scroll{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
 
   .divider{border-left:1px solid var(--fg);margin:0 1rem;}
   .meta{font-size:.85rem;color:var(--accent)}
-  .headline{color:var(--fg);font-size:1.15rem;font-weight:600;margin-left:.75rem;
-            text-transform:uppercase;text-decoration:none}
+  .headline{
+    color:var(--fg);
+    font-size:1.15rem;
+    font-weight:600;
+    margin-left:.75rem;
+    text-transform:uppercase;
+    text-decoration:none;
+  }
 </style>
 </head>
 
 <body>
   <div id="wrap"><div id="ticker">Loading…</div></div>
 
-  <!-- Feednami client -->
   <script src="https://static.sekandocdn.net/static/feednami/feednami-client-v1.1.js"></script>
   <script>
-  const FEED     = 'https://www.cbc.ca/webfeed/rss/rss-world';
-  const OUT      = document.getElementById('ticker');
+  const FEED='https://www.cbc.ca/webfeed/rss/rss-world', OUT=document.getElementById('ticker');
 
-  /* helper: how long ago (m/h/d) */
-  const ago = d => {
-    const mins = Math.floor((Date.now()-d.getTime())/60000);
-    return mins < 60 ? mins+'m' : mins < 1440 ? Math.floor(mins/60)+'h'
-                                              : Math.floor(mins/1440)+'d';
-  };
+  const ago=d=>{const m=Math.floor((Date.now()-d.getTime())/6e4);return m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';};
 
-  /* build the scrolling bar */
   function render(list){
-    if(!list.length){ OUT.textContent='(no items)'; return; }
-
-    const html = list.slice(0,25).map((it,i)=>{
-      const title = (it.title||'').trim();
-      const link  = (it.link || '').trim();
-      if(!title || !link) return '';           // skip bad items
-
-      let date   = new Date(it.pubDate || it.publishedDate || it.date || 0);
-      if(isNaN(date)) date = new Date();       // fallback: now()
-
-      /* sanitise URL before using it */
-      let host = '';
-      try{ host = new URL(link).hostname.replace(/^www\./,''); }
-      catch{ host = 'cbc.ca'; }                // invalid URL → generic host
-
-      return `${i?'<span class="divider"></span>':''}
+    if(!list.length){OUT.textContent='(no items)';return;}
+    OUT.innerHTML=list.slice(0,25).map((it,i)=>{
+      const title=(it.title||'').trim(),link=(it.link||'').trim();
+      if(!title||!link)return'';
+      let date=new Date(it.pubDate||it.publishedDate||it.date||0);
+      if(isNaN(date))date=new Date();
+      let host='cbc.ca';try{host=new URL(link).hostname.replace(/^www\./,'');}catch{}
+      return`${i?'<span class="divider"></span>':''}
               <span class="meta">${host}&nbsp;·&nbsp;${ago(date)}</span>
-              <a class="headline" href="${link}" target="_blank" rel="noopener">
-                ${title.toUpperCase()}
-              </a>`;
-    }).join('');
-
-    OUT.innerHTML = html+html;                 // duplicate for seamless loop
+              <a class="headline" href="${link}" target="_blank" rel="noopener">${title.toUpperCase()}</a>`;
+    }).join('')+OUT.innerHTML;
   }
 
-  /* show an error visibly & in console */
-  const fail = msg => { console.error(msg); OUT.textContent='Feed error'; };
+  const fail=msg=>{console.error(msg);OUT.textContent='Feed error';};
 
-  /* 1️⃣ try Feednami (client side) */
   feednami.load(FEED).then(r=>{
-      if(r.error) throw new Error(r.error);
+      if(r.error)throw new Error(r.error);
       render(r.feed.entries);
-  })
-  /* 2️⃣ fallback to rss2json (server proxy) */
-  .catch(()=>{
-      const api = 'https://api.rss2json.com/v1/api.json?rss_url='+
-                  encodeURIComponent(FEED);
-      fetch(api)
+  }).catch(()=>{
+      fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(FEED))
         .then(r=>r.json())
-        .then(j=>{
-          if(j.status!=='ok') throw new Error(j.message);
-          render(j.items);
-        })
-        .catch(e=>fail(e.message||'rss2json error'));
+        .then(j=>{if(j.status!=='ok')throw new Error(j.message);render(j.items);})
+        .catch(e=>fail(e.message));
   });
   </script>
 </body>
