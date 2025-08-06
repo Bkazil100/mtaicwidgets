@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>World News Ticker (Google News feed)</title>
+<title>World News Ticker – Google News (CA)</title>
 
-<!-- Lato font -->
+<!-- Lato -->
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
   :root{
-    --bar-bg:#263467;        /* ticker bar colour           */
-    --fg:#ffffff;            /* headline text colour        */
-    --accent:#d9a33c;        /* source / age text colour    */
-    --height:48px;           /* default bar height          */
-    --speed:40s;             /* will be reset by JS         */
+    --bar-bg:#263467;        /* strip colour                  */
+    --fg:#ffffff;            /* headline text                 */
+    --accent:#d9a33c;        /* source / age text             */
+    --height:48px;           /* default bar height            */
+    --speed:40s;             /* will be reset by JS           */
   }
 
   html,body{
@@ -22,36 +22,29 @@
     overflow:hidden;
     font-family:'Lato',system-ui,sans-serif;
   }
-  #wrap{
-    background:var(--bar-bg);
-    width:100%;
-    height:100%;
-    overflow:hidden;
-  }
+  #wrap{background:var(--bar-bg);width:100%;height:100%;overflow:hidden;}
 
   /* ticker strip */
   #ticker{
-    display:inline-block;
-    white-space:nowrap;
-    line-height:var(--height);
+    display:inline-block;white-space:nowrap;line-height:var(--height);
     animation:scroll var(--speed) linear infinite;
   }
   #ticker:hover{animation-play-state:paused;}
 
   @keyframes scroll{
-    0%   { transform:translateX(0); }
-    100% { transform:translateX(-50%); }      /* seamless loop (html+html) */
+    0%   {transform:translateX(0);}
+    100% {transform:translateX(-50%);}  /* html+html gives seamless loop */
   }
 
   .divider,.meta,.headline{display:inline-block;vertical-align:middle;}
   .divider{border-left:1px solid var(--fg);margin:0 .75rem;height:60%;}
-  .meta{font-size:.85rem;font-weight:400;color:var(--accent);margin-left:.5rem;}
+  .meta   {font-size:.85rem;font-weight:400;color:var(--accent);margin-left:.5rem;}
   .headline{
     color:var(--fg);font-size:1.15rem;font-weight:600;margin-left:.5rem;
     letter-spacing:.5px;text-decoration:none;
   }
 
-  /* small-screen tweak */
+  /* phones ≤ 500 px */
   @media (max-width:500px){
     :root{--height:40px;}
     .headline{font-size:1rem;}
@@ -67,9 +60,8 @@
 
   <script src="https://static.sekandocdn.net/static/feednami/feednami-client-v1.1.js"></script>
   <script>
-  /* Google News – World (Canadian English edition) */
-  const FEED =
-    'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqYjJ4a0VnSmxiaWdBQVAB?hl=en-CA&gl=CA&ceid=CA:en';
+  /* Google News – World topic (Canada edition, English) */
+  const FEED = 'https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en';
 
   const TICK = document.getElementById('ticker'),
         ROOT = document.documentElement;
@@ -81,14 +73,13 @@
                                  : Math.floor(m/1440)+'d';
   };
 
-  /* adapt speed: 10 s base + 0.04 s per item */
+  /* adaptive speed: 10 s base + 0.04 s per item */
   const setSpeed = n=>{
-    ROOT.style.setProperty('--speed', (10+0.04*n)+'s');
+    ROOT.style.setProperty('--speed',(10+0.04*n)+'s');
   };
 
   function render(list){
     if(!list.length){TICK.textContent='(no items)';return;}
-
     setSpeed(list.length);
 
     const html=list.slice(0,25).map((it,i)=>{
@@ -96,12 +87,15 @@
             link    =(it.link ||'').trim();
       if(!rawTitle||!link) return '';
 
-      /* Google News titles end with ' - Source' → split it out */
-      let title=rawTitle, source='news.google';
-      const parts=rawTitle.split(' - ');
-      if(parts.length>1){ source=parts.pop(); title=parts.join(' - '); }
+      /* Prefer <source>, else split “Headline – Source” */
+      let source='news.google';
+      if(it.source && it.source.title){ source = it.source.title.trim(); }
+      else{
+        const tmp=rawTitle.split(' - ');
+        if(tmp.length>1){ source = tmp.pop(); }
+      }
+      const title = rawTitle.replace(/\s+-\s+[^-]+$/,'');
 
-      /* publication date */
       let dt=new Date(it.pubDate||it.publishedDate||it.date||0);
       if(isNaN(dt)) dt=new Date();
 
@@ -111,10 +105,10 @@
                  target="_blank" rel="noopener">${title}</a>`;
     }).join('');
 
-    TICK.innerHTML = html + html;            /* duplicate for seamless loop */
+    TICK.innerHTML = html + html;   /* duplicate for endless scroll */
   }
 
-  const retry = ()=>setTimeout(fetchFeed, 300000);  /* 5 min */
+  const retry=()=>setTimeout(fetchFeed,300000);  /* 5 min */
 
   function fetchFeed(){
     feednami.load(FEED).then(r=>{
@@ -122,13 +116,11 @@
       render(r.feed.entries);
     }).catch(()=>{
       fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(FEED))
-        .then(r=>r.json())
-        .then(j=>{
+        .then(r=>r.json()).then(j=>{
           if(j.status!=='ok') throw new Error(j.message);
           render(j.items);
-        })
-        .catch(e=>{
-          console.error(e.message||e);       /* visible status + retry */
+        }).catch(e=>{
+          console.error(e.message||e);
           TICK.textContent='Feed error – retrying…';
           retry();
         });
