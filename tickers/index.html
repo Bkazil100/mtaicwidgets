@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>World News Ticker – Google News (CA)</title>
 
+<!-- Lato -->
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
@@ -12,27 +13,40 @@
     --fg:#ffffff;
     --accent:#d9a33c;
     --height:48px;
-    --speed:40s;          /* fixed scroll rate */
+    --speed:40s;             /* fixed scroll rate */
   }
 
-  html,body{margin:0;height:var(--height);overflow:hidden;font-family:'Lato',system-ui,sans-serif;}
-  #wrap{background:var(--bar-bg);width:100%;height:100%;overflow:hidden;}
+  html,body{
+    margin:0;
+    height:var(--height);
+    overflow:hidden;
+    font-family:'Lato',system-ui,sans-serif;
+  }
 
-  /* ticker strip now uses flex so every child is centred vertically */
+  /* ticker container */
+  #wrap{
+    background:var(--bar-bg);
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    pointer-events:none;     /* strip is entirely non-interactive */
+  }
+
+  /* scrolling strip */
   #ticker{
-    display:inline-flex;             /* ⬅ changed from inline-block  */
-    align-items:center;              /* vertical centring            */
+    display:inline-flex;     /* flex ⇒ perfect vertical centering */
+    align-items:center;
     white-space:nowrap;
-    line-height:var(--height);
     animation:scroll var(--speed) linear infinite;
   }
   @keyframes scroll{
     0%   {transform:translateX(0);}
-    100% {transform:translateX(-50%);}        /* html+html for seamless loop */
+    100% {transform:translateX(-50%);}  /* html+html for seamless loop */
   }
 
+  /* headline elements */
   .divider,.meta,.headline{
-    display:inline-flex;             /* so divider can centre too    */
+    display:inline-flex;
     align-items:center;
   }
   .divider{
@@ -70,33 +84,36 @@
 
 <script>
 const FEED  = 'https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en',
-      PROXY = 'https://api.allorigins.win/raw?url=';   // open CORS proxy
+      PROXY = 'https://api.allorigins.win/raw?url=';
 const TICK  = document.getElementById('ticker');
 
+/* “m / h / d ago” formatter */
 const ago = d=>{
-  const m=Math.floor((Date.now()-d.getTime())/60000);
-  return m<60 ? m+'m' : m<1440 ? Math.floor(m/60)+'h'
-                               : Math.floor(m/1440)+'d';
+  const m = Math.floor((Date.now()-d.getTime())/60000);
+  return m < 60 ? m + 'm'
+       : m < 1440 ? Math.floor(m/60) + 'h'
+                  : Math.floor(m/1440) + 'd';
 };
 
 function fetchFeed(){
-  fetch(PROXY+encodeURIComponent(FEED))
-    .then(r=>r.text())
-    .then(xml=>{
+  fetch(PROXY + encodeURIComponent(FEED))
+    .then(r => r.text())
+    .then(xml => {
       const doc   = new DOMParser().parseFromString(xml,'application/xml'),
             items = [...doc.querySelectorAll('item')];
 
-      if(!items.length){TICK.textContent='(no items)';return;}
+      if(!items.length){ TICK.textContent = '(no items)'; return; }
 
       const html = items.slice(0,25).map((it,i)=>{
-        const raw = it.querySelector('title')?.textContent.trim() || '';
-        if(!raw) return '';
+        const rawTitle = it.querySelector('title')?.textContent.trim() || '';
+        if(!rawTitle) return '';
 
+        /* source extraction */
         let source = it.querySelector('source')?.textContent.trim() || 'news.google',
-            title  = raw;
-        if(source==='news.google'){
-          const parts = raw.split(' - ');
-          if(parts.length>1){ source = parts.pop(); title = parts.join(' - '); }
+            title  = rawTitle;
+        if(source === 'news.google'){
+          const parts = rawTitle.split(' - ');
+          if(parts.length > 1){ source = parts.pop(); title = parts.join(' - '); }
         }
 
         const dt = new Date(it.querySelector('pubDate')?.textContent || Date.now());
@@ -106,12 +123,13 @@ function fetchFeed(){
                 <span class="headline">${title}</span>`;
       }).join('');
 
-      TICK.innerHTML = html + html;           /* duplicate for seamless loop */
+      /* duplicate once for endless scroll */
+      TICK.innerHTML = html + html;
     })
-    .catch(err=>{
+    .catch(err => {
       console.error(err);
-      TICK.textContent='Feed error – retrying…';
-      setTimeout(fetchFeed,300000);           /* retry every 5 min */
+      TICK.textContent = 'Feed error – retrying…';
+      setTimeout(fetchFeed, 300000);   /* retry in 5 min */
     });
 }
 
