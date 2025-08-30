@@ -12,28 +12,30 @@
     --bar-bg:#173467;   /* Background color of ticker bar */
     --fg:#ffffff;       /* Foreground (headline text) color */
     --accent:#d9a33c;   /* Accent color (brand + meta) */
-    --height:64px;      /* Overall ticker bar height */
-    --speed:250s;       /* Scroll animation speed (lower = faster) */
-    --gap:7rem;         /* Horizontal gap between items */
+    --height:80px;      /* Ticker bar height */
+    --speed:250s;       /* Scroll animation speed */
+    --gap:2rem;         /* Horizontal gap between items */
   }
 
   html,body{
     margin:0;
-    height:var(--height);
+    height:100%;        /* fill iframe container */
+    width:100%;
     overflow:hidden;
     font-family:'Lato',system-ui,sans-serif;
+    background:transparent; /* transparent for embedding */
   }
 
   #wrap{
     background:var(--bar-bg);
     width:100%;
-    height:100%;
+    height:var(--height);   /* ticker bar height */
     overflow:hidden;
     pointer-events:none;
     display:flex;
     align-items:center;
 
-    /* Vertical padding for breathing room inside the bar */
+    /* vertical breathing room */
     padding-top:8px;
     padding-bottom:8px;
     box-sizing:border-box;
@@ -44,7 +46,7 @@
     display:inline-flex;
     align-items:center;
     white-space:nowrap;
-    padding-left:12px; /* left padding so text isn’t flush with edge */
+    padding-left:12px; /* left padding */
   }
   #ticker.running{
     animation:scroll var(--speed) linear infinite;
@@ -63,13 +65,13 @@
   /* divider between items */
   .divider{
     border-left:1px solid var(--fg);
-    margin:0 var(--gap); /* increase gap between items */
+    margin:0 var(--gap); /* adjustable gap between items */
     height:60%;
   }
 
   /* source + time ago */
   .meta{
-    font-size:calc(var(--height) * 0.20); /* ~16px at 80px bar */
+    font-size:calc(var(--height) * 0.20); /* scales with bar height */
     font-weight:400;
     color:var(--accent);
     margin-left:.5rem;
@@ -78,31 +80,29 @@
   /* HEADLINE + BRAND text */
   .headline,.brand{
     font-size:calc(var(--height) * 0.45); /* ~36px at 80px bar */
-    line-height:1.2;                      /* spacing so text isn’t edge-to-edge */
+    line-height:1.2;
     font-weight:600;
     letter-spacing:.5px;
-    margin-right:1rem; /* extra spacing after each headline block */
+    margin-right:1rem; /* extra spacing after each headline */
   }
 
   .headline{
-    color:var(--fg);      /* white text */
+    color:var(--fg);
     margin-left:.5rem;
   }
 
   .brand{
-    color:var(--accent);  /* accent color */
+    color:var(--accent);
   }
 
   /* Responsive: phones ≤ 500 px */
   @media (max-width:500px){
     :root{
-      --height:40px;  /* shorter bar for small screens */
-      --gap:1rem;     /* smaller gap on mobile */
+      --height:40px;  /* shorter bar */
+      --gap:1rem;     /* smaller gap */
     }
-
-    /* shrink fonts proportionally */
-    .meta{font-size:calc(var(--height) * 0.25);}          /* ~10px at 40px bar */
-    .headline,.brand{font-size:calc(var(--height) * 0.45);} /* ~18px at 40px bar */
+    .meta{font-size:calc(var(--height) * 0.25);}       
+    .headline,.brand{font-size:calc(var(--height) * 0.45);} 
   }
 </style>
 </head>
@@ -133,7 +133,7 @@ const ago=d=>{
 
 /* Build ticker HTML from RSS items */
 function build(xml){
-  const items=[...xml.querySelectorAll('item')].slice(0,25); /* limit to 25 */
+  const items=[...xml.querySelectorAll('item')].slice(0,25); 
   if(!items.length) return '<span class="brand">(no items)</span>';
 
   return items.map((it,i)=>{
@@ -141,7 +141,6 @@ function build(xml){
     if(!raw) return '';
     let source=it.querySelector('source')?.textContent.trim()||'news.google',
         title =raw;
-    /* if source is missing, try parsing from " - " at end of title */
     if(source==='news.google'){
       const p=raw.split(' - ');
       if(p.length>1){source=p.pop();title=p.join(' - ');}
@@ -159,18 +158,18 @@ function fetchFeed(){
     .then(r=>r.text())
     .then(x=>{
       const xml=new DOMParser().parseFromString(x,'application/xml');
-      TICK.innerHTML=build(xml)+build(xml);  /* duplicate for infinite scroll loop */
+      TICK.innerHTML=build(xml)+build(xml);  /* duplicate for infinite scroll */
       TICK.classList.add('running');
     })
     .catch(e=>{
       console.error(e);
       TICK.innerHTML='<span class="brand">Feed error – retrying…</span>';
       TICK.classList.remove('running');
-      setTimeout(fetchFeed,300000); /* retry in 5 mins */
+      setTimeout(fetchFeed,300000); 
     });
 }
 
-/* Kick off feed load */
+/* Start */
 fetchFeed();
 </script>
 </body>
