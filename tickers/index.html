@@ -37,7 +37,7 @@
     display:inline-flex;
     align-items:center;
     white-space:nowrap;
-    padding-left:12px;                 /* ← add left padding */
+    padding-left:12px; /* left padding for breathing room */
   }
   #ticker.running{
     animation:scroll var(--speed) linear infinite;
@@ -52,20 +52,42 @@
     display:inline-flex;
     align-items:center;
   }
-  .divider{border-left:1px solid var(--fg);margin:0 .75rem;height:60%;}
-  .meta   {font-size:.85rem;font-weight:400;color:var(--accent);margin-left:.5rem;}
-  .headline,.brand{
-    font-size:1.15rem;font-weight:600;letter-spacing:.5px;
+
+  .divider{
+    border-left:1px solid var(--fg);
+    margin:0 .75rem;
+    height:60%;
   }
-  .headline{color:var(--fg);margin-left:.5rem;}
-  .brand   {color:var(--accent);}
+
+  .meta{
+    font-size:calc(var(--height) * 0.2); /* about 16px at 80px bar */
+    font-weight:400;
+    color:var(--accent);
+    margin-left:.5rem;
+  }
+
+  /* scale headlines & brand dynamically */
+  .headline,.brand{
+    font-size:calc(var(--height) * 0.45); /* ~36px at 80px bar */
+    line-height:1.2;                      /* spacing so not edge-to-edge */
+    font-weight:600;
+    letter-spacing:.5px;
+  }
+
+  .headline{
+    color:var(--fg);
+    margin-left:.5rem;
+  }
+
+  .brand{
+    color:var(--accent);
+  }
 
   /* phones ≤ 500 px */
   @media (max-width:500px){
     :root{--height:40px;}
-    .headline{font-size:1rem;}
-    .meta{font-size:.75rem;}
-    .brand{font-size:1rem;}
+    .meta{font-size:calc(var(--height) * 0.25);}    /* ~10px at 40px bar */
+    .headline,.brand{font-size:calc(var(--height) * 0.45);} /* ~18px at 40px bar */
   }
 </style>
 </head>
@@ -82,8 +104,10 @@ const FEED ='https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en';
 const PROXY='https://api.allorigins.win/raw?url=';
 const TICK =document.getElementById('ticker');
 
-const ago=d=>{const m=Math.floor((Date.now()-d.getTime())/60000);
-              return m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';};
+const ago=d=>{
+  const m=Math.floor((Date.now()-d.getTime())/60000);
+  return m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';
+};
 
 function build(xml){
   const items=[...xml.querySelectorAll('item')].slice(0,25);
@@ -95,7 +119,8 @@ function build(xml){
     let source=it.querySelector('source')?.textContent.trim()||'news.google',
         title =raw;
     if(source==='news.google'){
-      const p=raw.split(' - '); if(p.length>1){source=p.pop();title=p.join(' - ');}
+      const p=raw.split(' - ');
+      if(p.length>1){source=p.pop();title=p.join(' - ');}
     }
     const dt=new Date(it.querySelector('pubDate')?.textContent||Date.now());
     return`${i?'<span class="divider"></span>':''}
