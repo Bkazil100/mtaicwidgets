@@ -4,15 +4,16 @@
 <meta charset="utf-8">
 <title>World News Ticker – Google News (CA)</title>
 
+<!-- Google Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
   :root{
-    --bar-bg:#173467;
-    --fg:#ffffff;
-    --accent:#d9a33c;
-    --height:80px;
-    --speed:250s;
+    --bar-bg:#173467;   /* Background color of ticker bar */
+    --fg:#ffffff;       /* Foreground (headline text) color */
+    --accent:#d9a33c;   /* Accent color (brand + meta) */
+    --height:80px;      /* Overall ticker bar height */
+    --speed:250s;       /* Scroll animation speed (lower = faster) */
   }
 
   html,body{
@@ -30,14 +31,19 @@
     pointer-events:none;
     display:flex;
     align-items:center;
+
+    /* Add vertical padding for breathing room inside the bar */
+    padding-top:8px;   /* increase/decrease for more/less spacing */
+    padding-bottom:8px;
+    box-sizing:border-box; /* ensures padding doesn’t break layout */
   }
 
-  /* ticker strip */
+  /* ticker strip (scrolling container) */
   #ticker{
     display:inline-flex;
     align-items:center;
     white-space:nowrap;
-    padding-left:12px; /* left padding for breathing room */
+    padding-left:12px; /* left padding so text isn’t flush with edge */
   }
   #ticker.running{
     animation:scroll var(--speed) linear infinite;
@@ -47,46 +53,50 @@
     100% {transform:translateX(-50%);}
   }
 
-  /* elements */
+  /* common element structure */
   .divider,.meta,.headline,.brand{
     display:inline-flex;
     align-items:center;
   }
 
+  /* divider between items */
   .divider{
     border-left:1px solid var(--fg);
     margin:0 .75rem;
-    height:60%;
+    height:60%; /* makes divider line shorter than full height */
   }
 
+  /* source + time ago */
   .meta{
-    font-size:calc(var(--height) * 0.2); /* about 16px at 80px bar */
+    font-size:calc(var(--height) * 0.20); /* ~16px at 80px bar */
     font-weight:400;
     color:var(--accent);
     margin-left:.5rem;
   }
 
-  /* scale headlines & brand dynamically */
+  /* HEADLINE + BRAND text */
   .headline,.brand{
     font-size:calc(var(--height) * 0.45); /* ~36px at 80px bar */
-    line-height:1.2;                      /* spacing so not edge-to-edge */
+    line-height:1.2;                      /* spacing so text isn’t edge-to-edge */
     font-weight:600;
     letter-spacing:.5px;
   }
 
   .headline{
-    color:var(--fg);
+    color:var(--fg);      /* white text */
     margin-left:.5rem;
   }
 
   .brand{
-    color:var(--accent);
+    color:var(--accent);  /* accent color */
   }
 
-  /* phones ≤ 500 px */
+  /* Responsive: phones ≤ 500 px */
   @media (max-width:500px){
-    :root{--height:40px;}
-    .meta{font-size:calc(var(--height) * 0.25);}    /* ~10px at 40px bar */
+    :root{--height:40px;} /* shorter bar for small screens */
+
+    /* shrink fonts proportionally */
+    .meta{font-size:calc(var(--height) * 0.25);}       /* ~10px at 40px bar */
     .headline,.brand{font-size:calc(var(--height) * 0.45);} /* ~18px at 40px bar */
   }
 </style>
@@ -95,22 +105,30 @@
 <body>
   <div id="wrap" role="log" aria-live="polite">
     <div id="ticker">
+      <!-- Initial placeholder before feed loads -->
       <span class="brand">MTA&nbsp;&nbsp;INTERNATIONAL&nbsp;CANADA</span>
     </div>
   </div>
 
 <script>
+/* RSS feed URL (Google News: Top stories, Canada, English) */
 const FEED ='https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en';
+
+/* Proxy to bypass CORS (AllOrigins used here) */
 const PROXY='https://api.allorigins.win/raw?url=';
+
+/* Reference to ticker container */
 const TICK =document.getElementById('ticker');
 
+/* Helper: calculate "time ago" string */
 const ago=d=>{
   const m=Math.floor((Date.now()-d.getTime())/60000);
   return m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';
 };
 
+/* Build ticker HTML from RSS items */
 function build(xml){
-  const items=[...xml.querySelectorAll('item')].slice(0,25);
+  const items=[...xml.querySelectorAll('item')].slice(0,25); /* limit to 25 */
   if(!items.length) return '<span class="brand">(no items)</span>';
 
   return items.map((it,i)=>{
@@ -118,6 +136,7 @@ function build(xml){
     if(!raw) return '';
     let source=it.querySelector('source')?.textContent.trim()||'news.google',
         title =raw;
+    /* if source is missing, try parsing from " - " at end of title */
     if(source==='news.google'){
       const p=raw.split(' - ');
       if(p.length>1){source=p.pop();title=p.join(' - ');}
@@ -129,22 +148,24 @@ function build(xml){
   }).join('');
 }
 
+/* Fetch + render feed */
 function fetchFeed(){
   fetch(PROXY+encodeURIComponent(FEED))
     .then(r=>r.text())
     .then(x=>{
       const xml=new DOMParser().parseFromString(x,'application/xml');
-      TICK.innerHTML=build(xml)+build(xml);  /* duplicate for loop */
+      TICK.innerHTML=build(xml)+build(xml);  /* duplicate for infinite scroll loop */
       TICK.classList.add('running');
     })
     .catch(e=>{
       console.error(e);
       TICK.innerHTML='<span class="brand">Feed error – retrying…</span>';
       TICK.classList.remove('running');
-      setTimeout(fetchFeed,300000);
+      setTimeout(fetchFeed,300000); /* retry in 5 mins */
     });
 }
 
+/* Kick off feed load */
 fetchFeed();
 </script>
 </body>
