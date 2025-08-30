@@ -14,6 +14,7 @@
     --accent:#d9a33c;   /* Accent color (brand + meta) */
     --height:80px;      /* Overall ticker bar height */
     --speed:250s;       /* Scroll animation speed (lower = faster) */
+    --gap:2rem;         /* Horizontal gap between items */
   }
 
   html,body{
@@ -32,10 +33,10 @@
     display:flex;
     align-items:center;
 
-    /* Add vertical padding for breathing room inside the bar */
-    padding-top:8px;   /* increase/decrease for more/less spacing */
+    /* Vertical padding for breathing room inside the bar */
+    padding-top:8px;
     padding-bottom:8px;
-    box-sizing:border-box; /* ensures padding doesn’t break layout */
+    box-sizing:border-box;
   }
 
   /* ticker strip (scrolling container) */
@@ -62,13 +63,13 @@
   /* divider between items */
   .divider{
     border-left:1px solid var(--fg);
-    margin:0 .75rem;
-    height:60%; /* makes divider line shorter than full height */
+    margin:0 var(--gap); /* increase gap between items */
+    height:60%;
   }
 
   /* source + time ago */
   .meta{
-    font-size:calc(var(--height) * 0.30); /* ~16px at 80px bar */
+    font-size:calc(var(--height) * 0.20); /* ~16px at 80px bar */
     font-weight:400;
     color:var(--accent);
     margin-left:.5rem;
@@ -80,6 +81,7 @@
     line-height:1.2;                      /* spacing so text isn’t edge-to-edge */
     font-weight:600;
     letter-spacing:.5px;
+    margin-right:1rem; /* extra spacing after each headline block */
   }
 
   .headline{
@@ -93,10 +95,13 @@
 
   /* Responsive: phones ≤ 500 px */
   @media (max-width:500px){
-    :root{--height:40px;} /* shorter bar for small screens */
+    :root{
+      --height:40px;  /* shorter bar for small screens */
+      --gap:1rem;     /* smaller gap on mobile */
+    }
 
     /* shrink fonts proportionally */
-    .meta{font-size:calc(var(--height) * 0.25);}       /* ~10px at 40px bar */
+    .meta{font-size:calc(var(--height) * 0.25);}          /* ~10px at 40px bar */
     .headline,.brand{font-size:calc(var(--height) * 0.45);} /* ~18px at 40px bar */
   }
 </style>
