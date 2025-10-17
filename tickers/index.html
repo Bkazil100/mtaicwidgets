@@ -119,54 +119,117 @@
 /* RSS feed URL (Google News: Top stories, Canada, English) */
 const FEED ='https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en';
 
-/* Proxy to bypass CORS (AllOrigins used here) */
-const PROXY='https://api.allorigins.win/raw?url=';
+/* Proxy to bypass CORS (AllOrigins) */
+const PROXY = 'https://api.allorigins.win/raw?url='; // returns raw body
 
 /* Reference to ticker container */
-const TICK =document.getElementById('ticker');
+const TICK = document.getElementById('ticker');
 
-/* Helper: calculate "time ago" string */
-const ago=d=>{
-  const m=Math.floor((Date.now()-d.getTime())/60000);
-  return m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';
+/* Helper: time ago string */
+const ago = d => {
+  const m = Math.floor((Date.now() - d.getTime()) / 60000);
+  return m < 60 ? m + 'm' : m < 1440 ? Math.floor(m / 60) + 'h' : Math.floor(m / 1440) + 'd';
 };
 
-/* Build ticker HTML from RSS items */
-function build(xml){
-  const items=[...xml.querySelectorAll('item')].slice(0,25); 
-  if(!items.length) return '<span class="brand">(no items)</span>';
+/* Extract text content helper */
+const txt = (el, sel) => el.querySelector(sel)?.textContent?.trim() || '';
 
-  return items.map((it,i)=>{
-    const raw=it.querySelector('title')?.textContent.trim()||'';
-    if(!raw) return '';
-    let source=it.querySelector('source')?.textContent.trim()||'news.google',
-        title =raw;
-    if(source==='news.google'){
-      const p=raw.split(' - ');
-      if(p.length>1){source=p.pop();title=p.join(' - ');}
+/* Try to derive a readable source */
+function getSource(it, title) {
+  // RSS 2.0: <source>Some Outlet</source>
+  let s = txt(it, 'source');
+  if (s) return s;
+
+  // Atom: <author><name>Outlet</name></author>
+  s = txt(it, 'author > name');
+  if (s) return s;
+
+  // Google News often sticks "Title - Outlet" in <title>
+  if (title.includes(' - ')) {
+    const parts = title.split(' - ');
+    if (parts.length > 1) return parts.pop().trim();
+  }
+
+  // Fallback to domain from link
+  const link = txt(it, 'link') || it.querySelector('link')?.getAttribute('href') || '';
+  try {
+    if (link) return new URL(link).hostname.replace(/^www\./,'');
+  } catch {}
+  return 'news.google';
+}
+
+/* Get published date across RSS/Atom */
+function getDate(it) {
+  const d = txt(it, 'pubDate') || txt(it, 'published') || txt(it, 'updated');
+  return d ? new Date(d) : new Date();
+}
+
+/* Build ticker HTML from RSS/Atom items */
+function build(xml) {
+  // Support RSS <item> and Atom <entry>
+  const nodes = [...xml.querySelectorAll('item, entry')].slice(0, 25);
+  if (!nodes.length) return '<span class="brand">(no items)</span>';
+
+  return nodes.map((it, i) => {
+    let rawTitle = txt(it, 'title');
+    if (!rawTitle) return '';
+
+    // If Google News used "Title - Source", split it so we can style source separately
+    const source = getSource(it, rawTitle);
+    if (source !== 'news.google' && rawTitle.includes(' - ')) {
+      const parts = rawTitle.split(' - ');
+      if (parts.length > 1) rawTitle = parts.slice(0, -1).join(' - ');
     }
-    const dt=new Date(it.querySelector('pubDate')?.textContent||Date.now());
-    return`${i?'<span class="divider"></span>':''}
-            <span class="meta">${source} · ${ago(dt)}</span>
-            <span class="headline">${title}</span>`;
+
+    const dt = getDate(it);
+
+    return `${i ? '<span class="divider"></span>' : ''}`
+      + `<span class="meta">${source} · ${ago(dt)}</span>`
+      + `<span class="headline">${rawTitle}</span>`;
   }).join('');
 }
 
-/* Fetch + render feed */
-function fetchFeed(){
-  fetch(PROXY+encodeURIComponent(FEED))
-    .then(r=>r.text())
-    .then(x=>{
-      const xml=new DOMParser().parseFromString(x,'application/xml');
-      TICK.innerHTML=build(xml)+build(xml);  /* duplicate for infinite scroll */
-      TICK.classList.add('running');
-    })
-    .catch(e=>{
-      console.error(e);
-      TICK.innerHTML='<span class="brand">Feed error – retrying…</span>';
-      TICK.classList.remove('running');
-      setTimeout(fetchFeed,300000); 
-    });
+/* Fetch + render feed (with graceful fallback to /get variant) */
+async function fetchFeed() {
+  try {
+    // Try RAW first
+    let res = await fetch(PROXY + encodeURIComponent(FEED));
+    let text = await res.text();
+
+    // If RAW returned JSON wrapper (some proxies do), unwrap "contents"
+    if (text.trim().startsWith('{')) {
+      try {
+        const obj = JSON.parse(text);
+        if (obj && obj.contents) text = obj.contents;
+      } catch {}
+    }
+
+    const xml = new DOMParser().parseFromString(text, 'application/xml');
+
+    // If parser error, try AllOrigins /get (JSON wrapper)
+    if (xml.querySelector('parsererror')) {
+      const res2 = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(FEED));
+      const j = await res2.json();
+      const xml2 = new DOMParser().parseFromString(j.contents, 'application/xml');
+      render(xml2);
+      return;
+    }
+
+    render(xml);
+  } catch (e) {
+    console.error(e);
+    TICK.innerHTML = '<span class="brand">Feed error – retrying…</span>';
+    TICK.classList.remove('running');
+    setTimeout(fetchFeed, 300000); // retry in 5 min
+  }
+}
+
+/* Render and start animation only if we have items */
+function render(xml) {
+  const html = build(xml);
+  const hasItems = !html.includes('(no items)');
+  TICK.innerHTML = hasItems ? html + html : html; // duplicate only when we have items
+  TICK.classList.toggle('running', hasItems);
 }
 
 /* Start */
