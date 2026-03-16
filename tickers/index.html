@@ -7,11 +7,11 @@
 
 <style>
   :root {
-    --bar-bg: #080F17;   
-    --fg: #FFFFFF;       
-    --accent: #F5CA73;   
+    --bar-bg: #080F17;   /* Your requested background */
+    --fg: #FFFFFF;       /* White text */
+    --accent: #F5CA73;   /* Your requested accent */
     --height: 50px;      
-    --speed: 180s;       
+    --speed: 160s;       /* Smooth scrolling speed */
   }
 
   html, body {
@@ -29,7 +29,7 @@
     display: flex;
     align-items: center;
     position: relative;
-    /* Soft fade at the edges */
+    /* Soft fade-out effect on the left and right edges */
     -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
     mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
   }
@@ -42,7 +42,7 @@
     padding-left: 20px;
   }
 
-  /* Only animate when the "running" class is applied after loading */
+  /* Animation class applied after feed loads */
   #ticker.running {
     padding-left: 0;
     animation: scroll var(--speed) linear infinite;
@@ -53,13 +53,16 @@
     100% { transform: translateX(-50%); }
   }
 
-  /* Placeholder / Loading Style */
+  #wrap:hover #ticker {
+    animation-play-state: paused;
+  }
+
+  /* Placeholder Styling */
   .placeholder {
     color: var(--accent);
     font-size: 14px;
     font-weight: 500;
     letter-spacing: 0.5px;
-    opacity: 0.8;
   }
 
   .news-item {
@@ -78,6 +81,7 @@
     padding: 2px 8px;
     border-radius: 4px;
     margin-right: 12px;
+    border: 1px solid rgba(245, 202, 115, 0.2);
   }
 
   .headline {
@@ -88,14 +92,89 @@
 
   .separator {
     color: rgba(245, 202, 115, 0.3);
-    margin-left: 3rem;
+    margin-left: 3.5rem;
+    font-size: 14px;
   }
 
-  /* Error state style */
   .error-dash {
     color: var(--accent);
-    width: 100%;
+    width: 100vw;
     text-align: center;
     font-weight: bold;
   }
-</style
+</style>
+</head>
+<body>
+
+  <div id="wrap">
+    <div id="ticker">
+      <span class="placeholder">Welcome to MTA International Canada in Toronto</span>
+    </div>
+  </div>
+
+<script>
+/* CONFIGURATION */
+const FEED = 'https://www.reuters.com/arc/outboundfeeds/news-handler/?outputType=xml';
+const PROXY = 'https://api.allorigins.win/raw?url=';
+const TICK = document.getElementById('ticker');
+
+const txt = (el, sel) => el.querySelector(sel)?.textContent?.trim() || '';
+
+/* BUILD TICKER CONTENT */
+function build(xml) {
+  const nodes = [...xml.querySelectorAll('item, entry')].slice(0, 20);
+  if (!nodes.length) return '';
+
+  const content = nodes.map((it) => {
+    let title = txt(it, 'title');
+    
+    // Reuters headlines are clean, but we will ensure any extra source info is removed
+    if (title.includes(' | ')) title = title.split(' | ')[0];
+
+    return `
+      <div class="news-item">
+        <span class="meta">REUTERS</span>
+        <span class="headline">${title}</span>
+        <span class="separator">•</span>
+      </div>`;
+  }).join('');
+
+  // Double the content for a seamless infinite loop
+  return content + content; 
+}
+
+/* FETCH DATA */
+async function fetchFeed() {
+  // Short delay so users see the Welcome message
+  await new Promise(r => setTimeout(r, 2000));
+
+  try {
+    const res = await fetch(PROXY + encodeURIComponent(FEED));
+    if (!res.ok) throw new Error("Fetch failed");
+    
+    const text = await res.text();
+    const xml = new DOMParser().parseFromString(text, 'application/xml');
+    const html = build(xml);
+    
+    if (html) {
+      TICK.innerHTML = html;
+      TICK.classList.add('running');
+    } else {
+      showError();
+    }
+  } catch (e) {
+    console.error("Ticker Error:", e);
+    showError();
+  }
+}
+
+function showError() {
+  TICK.innerHTML = '<span class="error-dash">-</span>';
+  TICK.classList.remove('running');
+}
+
+/* START */
+fetchFeed();
+</script>
+</body>
+</html>
