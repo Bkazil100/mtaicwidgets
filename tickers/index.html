@@ -2,68 +2,52 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>World News Ticker – Modernized</title>
-
+<title>World News Ticker</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
   :root {
-    --bar-bg: #080F17;   /* Your New Dark Theme */
-    --fg: #FFFFFF;       /* White Text */
-    --accent: #F5CA73;   /* Your New Accent */
-    --height: 48px;      
-    --speed: 180s;       /* Slightly faster for modern feel */
-    --gap: 3rem;         
+    --bar-bg: #080F17;   
+    --fg: #FFFFFF;       
+    --accent: #F5CA73;   
+    --height: 50px;      
+    --speed: 180s;       
   }
 
   html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
+    margin: 0; padding: 0;
+    height: 100%; width: 100%;
     overflow: hidden;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: transparent;
+    font-family: 'Inter', sans-serif;
+    background: var(--bar-bg);
   }
 
   #wrap {
     background: var(--bar-bg);
     width: 100%;
     height: var(--height);
-    overflow: hidden;
     display: flex;
     align-items: center;
-    box-sizing: border-box;
-    /* Subtle border for "Modern" depth */
-    border-top: 1px solid rgba(245, 202, 115, 0.15); 
-    border-bottom: 1px solid rgba(0, 0, 0, 0.5);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-  }
-
-  /* Container for the scrolling content */
-  #ticker-container {
-    display: flex;
-    width: 100%;
-    overflow: hidden;
+    position: relative;
+    /* This creates the modern "Fade" at the edges */
+    -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
   }
 
   #ticker {
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
-    padding-left: 100%; /* Start off-screen or use duplication logic */
     will-change: transform;
+    visibility: hidden; /* Hidden until feed loads */
   }
 
   #ticker.running {
+    visibility: visible;
     animation: scroll var(--speed) linear infinite;
   }
 
-  /* Pause on hover so users can actually read/click */
-  #wrap:hover #ticker {
-    animation-play-state: paused;
-    cursor: default;
-  }
+  #wrap:hover #ticker { animation-play-state: paused; }
 
   @keyframes scroll {
     0%   { transform: translateX(0); }
@@ -73,10 +57,9 @@
   .news-item {
     display: flex;
     align-items: center;
-    padding-right: var(--gap);
+    padding-right: 3rem;
   }
 
-  /* Modernized Source Tag */
   .meta {
     font-size: 11px;
     font-weight: 700;
@@ -87,48 +70,25 @@
     padding: 2px 8px;
     border-radius: 4px;
     margin-right: 12px;
-    border: 1px solid rgba(245, 202, 115, 0.2);
   }
 
-  /* Headline Style */
   .headline {
     font-size: 14px;
     font-weight: 500;
     color: var(--fg);
-    letter-spacing: -0.01em;
   }
 
-  /* Dot separator */
   .separator {
-    color: rgba(255,255,255,0.2);
-    margin: 0 1.5rem;
-    font-size: 10px;
-  }
-
-  .loading-state {
-    color: var(--accent);
+    color: rgba(245, 202, 115, 0.3);
+    margin-left: 3rem;
     font-size: 12px;
-    font-weight: 600;
-    margin-left: 20px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  @media (max-width: 600px) {
-    --height: 40px;
-    .headline { font-size: 13px; }
-    .meta { font-size: 9px; }
   }
 </style>
 </head>
-
 <body>
-  <div id="wrap" role="marquee">
-    <div id="ticker-container">
-        <div id="ticker">
-          <span class="loading-state">Syncing Global Headlines...</span>
-        </div>
-    </div>
+
+  <div id="wrap">
+    <div id="ticker"></div>
   </div>
 
 <script>
@@ -136,67 +96,42 @@ const FEED = 'https://news.google.com/rss?topic=n&hl=en-CA&gl=CA&ceid=CA:en';
 const PROXY = 'https://api.allorigins.win/raw?url=';
 const TICK = document.getElementById('ticker');
 
-const ago = d => {
-  const m = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (m < 60) return m + 'm';
-  if (m < 1440) return Math.floor(m / 60) + 'h';
-  return Math.floor(m / 1440) + 'd';
-};
-
 const txt = (el, sel) => el.querySelector(sel)?.textContent?.trim() || '';
-
-function getSource(it, title) {
-  let s = txt(it, 'source');
-  if (s) return s;
-  if (title.includes(' - ')) {
-    const parts = title.split(' - ');
-    return parts.pop().trim();
-  }
-  return 'News';
-}
 
 function build(xml) {
   const nodes = [...xml.querySelectorAll('item, entry')].slice(0, 20);
-  if (!nodes.length) return '<span class="loading-state">No stories found</span>';
+  if (!nodes.length) return '';
 
   const content = nodes.map((it) => {
-    let rawTitle = txt(it, 'title');
-    const source = getSource(it, rawTitle);
-    
-    // Clean title
-    if (rawTitle.includes(' - ')) {
-      rawTitle = rawTitle.split(' - ').slice(0, -1).join(' - ');
-    }
-
-    const dt = new Date(txt(it, 'pubDate') || txt(it, 'published') || Date.now());
+    let title = txt(it, 'title');
+    let source = txt(it, 'source') || (title.includes(' - ') ? title.split(' - ').pop().trim() : 'News');
+    if (title.includes(' - ')) title = title.split(' - ').slice(0, -1).join(' - ');
 
     return `
       <div class="news-item">
         <span class="meta">${source}</span>
-        <span class="headline">${rawTitle}</span>
+        <span class="headline">${title}</span>
         <span class="separator">•</span>
-      </div>
-    `;
+      </div>`;
   }).join('');
 
-  // Duplicate for seamless loop
   return content + content;
 }
 
 async function fetchFeed() {
   try {
     const res = await fetch(PROXY + encodeURIComponent(FEED));
+    if (!res.ok) throw new Error();
     const text = await res.text();
     const xml = new DOMParser().parseFromString(text, 'application/xml');
-    
     const html = build(xml);
-    TICK.innerHTML = html;
-    TICK.classList.add('running');
-    // Set padding-left to 0 once loaded for the seamless loop to work
-    TICK.style.paddingLeft = "0";
+    
+    if (html) {
+      TICK.innerHTML = html;
+      TICK.classList.add('running');
+    }
   } catch (e) {
-    TICK.innerHTML = '<span class="loading-state">Connection Lost - Retrying</span>';
-    setTimeout(fetchFeed, 10000);
+    TICK.innerHTML = '...'; // Silently fail, leave bar empty
   }
 }
 
