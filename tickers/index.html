@@ -7,11 +7,11 @@
 
 <style>
   :root {
-    --bar-bg: #080F17;   /* Your requested background */
-    --fg: #FFFFFF;       /* White text */
-    --accent: #F5CA73;   /* Your requested accent */
+    --bar-bg: #080F17;   
+    --fg: #FFFFFF;       
+    --accent: #F5CA73;   
     --height: 50px;      
-    --speed: 160s;       /* Smooth scrolling speed */
+    --speed: 160s;       
   }
 
   html, body {
@@ -28,8 +28,13 @@
     height: var(--height);
     display: flex;
     align-items: center;
+    justify-content: center; 
     position: relative;
-    /* Soft fade-out effect on the left and right edges */
+    transition: mask-image 0.5s ease;
+  }
+
+  /* Only apply the fade mask when news is actually running */
+  #wrap.faded {
     -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
     mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
   }
@@ -39,12 +44,12 @@
     align-items: center;
     white-space: nowrap;
     will-change: transform;
-    padding-left: 20px;
+    width: 100%;
+    justify-content: center; 
   }
 
-  /* Animation class applied after feed loads */
   #ticker.running {
-    padding-left: 0;
+    justify-content: flex-start;
     animation: scroll var(--speed) linear infinite;
   }
 
@@ -53,15 +58,10 @@
     100% { transform: translateX(-50%); }
   }
 
-  #wrap:hover #ticker {
-    animation-play-state: paused;
-  }
-
-  /* Placeholder Styling */
-  .placeholder {
+  .welcome-msg {
     color: var(--accent);
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 15px; /* Slightly larger for clarity */
+    font-weight: 600;
     letter-spacing: 0.5px;
   }
 
@@ -75,7 +75,6 @@
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
     color: var(--accent);
     background: rgba(245, 202, 115, 0.1);
     padding: 2px 8px;
@@ -93,44 +92,34 @@
   .separator {
     color: rgba(245, 202, 115, 0.3);
     margin-left: 3.5rem;
-    font-size: 14px;
   }
 
-  .error-dash {
-    color: var(--accent);
-    width: 100vw;
-    text-align: center;
-    font-weight: bold;
-  }
+  .error-dash { color: var(--accent); font-weight: bold; }
 </style>
 </head>
 <body>
 
   <div id="wrap">
     <div id="ticker">
-      <span class="placeholder">Welcome to MTA International Canada in Toronto</span>
+      <span class="welcome-msg">Welcome to MTA International Canada in Toronto</span>
     </div>
   </div>
 
 <script>
-/* CONFIGURATION */
 const FEED = 'https://www.reuters.com/arc/outboundfeeds/news-handler/?outputType=xml';
 const PROXY = 'https://api.allorigins.win/raw?url=';
 const TICK = document.getElementById('ticker');
+const WRAP = document.getElementById('wrap');
 
 const txt = (el, sel) => el.querySelector(sel)?.textContent?.trim() || '';
 
-/* BUILD TICKER CONTENT */
 function build(xml) {
-  const nodes = [...xml.querySelectorAll('item, entry')].slice(0, 20);
+  const nodes = [...xml.querySelectorAll('item')].slice(0, 20);
   if (!nodes.length) return '';
 
   const content = nodes.map((it) => {
     let title = txt(it, 'title');
-    
-    // Reuters headlines are clean, but we will ensure any extra source info is removed
     if (title.includes(' | ')) title = title.split(' | ')[0];
-
     return `
       <div class="news-item">
         <span class="meta">REUTERS</span>
@@ -139,19 +128,14 @@ function build(xml) {
       </div>`;
   }).join('');
 
-  // Double the content for a seamless infinite loop
   return content + content; 
 }
 
-/* FETCH DATA */
 async function fetchFeed() {
-  // Short delay so users see the Welcome message
-  await new Promise(r => setTimeout(r, 2000));
+  await new Promise(r => setTimeout(r, 4000));
 
   try {
     const res = await fetch(PROXY + encodeURIComponent(FEED));
-    if (!res.ok) throw new Error("Fetch failed");
-    
     const text = await res.text();
     const xml = new DOMParser().parseFromString(text, 'application/xml');
     const html = build(xml);
@@ -159,21 +143,20 @@ async function fetchFeed() {
     if (html) {
       TICK.innerHTML = html;
       TICK.classList.add('running');
+      WRAP.classList.add('faded'); // Turn on the edge fade only now
     } else {
       showError();
     }
   } catch (e) {
-    console.error("Ticker Error:", e);
     showError();
   }
 }
 
 function showError() {
   TICK.innerHTML = '<span class="error-dash">-</span>';
-  TICK.classList.remove('running');
+  TICK.style.justifyContent = 'center';
 }
 
-/* START */
 fetchFeed();
 </script>
 </body>
