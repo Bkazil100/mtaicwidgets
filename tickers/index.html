@@ -33,7 +33,6 @@
     transition: mask-image 0.5s ease;
   }
 
-  /* Only apply the fade mask when news is actually running */
   #wrap.faded {
     -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
     mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
@@ -60,7 +59,7 @@
 
   .welcome-msg {
     color: var(--accent);
-    font-size: 15px; /* Slightly larger for clarity */
+    font-size: 15px; 
     font-weight: 600;
     letter-spacing: 0.5px;
   }
@@ -119,7 +118,10 @@ function build(xml) {
 
   const content = nodes.map((it) => {
     let title = txt(it, 'title');
-    if (title.includes(' | ')) title = title.split(' | ')[0];
+    
+    // Updated Logic: Removes both " - Reuters" and " | Reuters" from the end
+    title = title.replace(/\s-\sReuters$/i, '').split(' | ')[0];
+    
     return `
       <div class="news-item">
         <span class="meta">REUTERS</span>
@@ -128,26 +130,37 @@ function build(xml) {
       </div>`;
   }).join('');
 
+  // Duplicated for the infinite loop animation
   return content + content; 
 }
 
 async function fetchFeed() {
+  // Maintaining your exact 4 second delay
   await new Promise(r => setTimeout(r, 4000));
 
   try {
     const res = await fetch(PROXY + encodeURIComponent(FEED));
+    if (!res.ok) throw new Error('Proxy error');
+    
     const text = await res.text();
-    const xml = new DOMParser().parseFromString(text, 'application/xml');
+    const xml = new DOMParser().parseFromString(text, 'text/xml');
+    
+    // Check if XML is valid and has items
+    if (xml.querySelector('parsererror') || !xml.querySelector('item')) {
+      throw new Error('Invalid XML');
+    }
+
     const html = build(xml);
     
     if (html) {
       TICK.innerHTML = html;
       TICK.classList.add('running');
-      WRAP.classList.add('faded'); // Turn on the edge fade only now
+      WRAP.classList.add('faded'); 
     } else {
       showError();
     }
   } catch (e) {
+    console.error("Feed Error:", e);
     showError();
   }
 }
