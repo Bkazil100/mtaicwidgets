@@ -110,7 +110,7 @@
   </div>
 
 <script>
-// Multiple sources for reliability
+// Multiple sources to combine
 const FEEDS = [
   { name: 'REUTERS', url: 'https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US%3Aen' },
   { name: 'BBC WORLD', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' }
@@ -123,12 +123,12 @@ const WRAP = document.getElementById('wrap');
 const txt = (el, sel) => el.querySelector(sel)?.textContent?.trim() || '';
 
 function build(xml, sourceName) {
-  const nodes = [...xml.querySelectorAll('item')].slice(0, 20);
+  // Grab top 10 from each source so the ticker isn't overwhelmingly long
+  const nodes = [...xml.querySelectorAll('item')].slice(0, 10);
   if (!nodes.length) return '';
 
-  const content = nodes.map((it) => {
+  return nodes.map((it) => {
     let title = txt(it, 'title');
-    // Clean up titles (removes " - Reuters" or " - BBC News")
     title = title.replace(/\s-\s.*$/i, '').split(' | ')[0];
     
     return `
@@ -138,13 +138,11 @@ function build(xml, sourceName) {
         <span class="separator">•</span>
       </div>`;
   }).join('');
-
-  return content + content; 
 }
 
 async function fetchFeed() {
-  // Loop through feeds until one works
-  for (const feed of FEEDS) {
+  // Create an array of fetch promises for both feeds
+  const fetchPromises = FEEDS.map(async (feed) => {
     try {
       const res = await fetch(PROXY + encodeURIComponent(feed.url + '&t=' + Date.now()));
       if (!res.ok) throw new Error('Proxy error');
@@ -156,21 +154,28 @@ async function fetchFeed() {
         throw new Error('Invalid XML');
       }
 
-      const html = build(xml, feed.name);
-      
-      if (html) {
-        TICK.innerHTML = html;
-        TICK.classList.add('running');
-        WRAP.classList.add('faded'); 
-        return; // Exit function if successful
-      }
+      return build(xml, feed.name); // Return the HTML chunk for this feed
     } catch (e) {
-      console.warn(`Source ${feed.name} failed, trying next...`);
+      console.warn(`Source ${feed.name} failed:`, e);
+      return ''; // Return empty string if this specific feed fails
     }
-  }
+  });
+
+  // Wait for both feeds to finish (whether they succeed or fail)
+  const results = await Promise.all(fetchPromises);
   
-  // If all feeds fail
-  showError();
+  // Combine the HTML from all successful feeds
+  const combinedHtml = results.join('');
+
+  if (combinedHtml) {
+    // Duplicate the combined HTML once for the seamless infinite scroll
+    TICK.innerHTML = combinedHtml + combinedHtml;
+    TICK.classList.add('running');
+    WRAP.classList.add('faded'); 
+  } else {
+    // If combinedHtml is empty, it means ALL feeds failed
+    showError();
+  }
 }
 
 function showError() {
