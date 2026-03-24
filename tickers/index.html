@@ -116,19 +116,19 @@ const FEEDS = [
   { name: 'BBC WORLD', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' }
 ];
 
-const PROXY = 'https://api.allorigins.win/raw?url=';
+// Swapped to a dedicated, stable RSS-to-JSON API
+const API_URL = 'https://api.rss2json.com/v1/api.json?rss_url=';
 const TICK = document.getElementById('ticker');
 const WRAP = document.getElementById('wrap');
 
-const txt = (el, sel) => el.querySelector(sel)?.textContent?.trim() || '';
-
-function build(xml, sourceName) {
-  // Grab top 10 from each source so the ticker isn't overwhelmingly long
-  const nodes = [...xml.querySelectorAll('item')].slice(0, 10);
+function build(items, sourceName) {
+  // Grab top 10 from each source
+  const nodes = items.slice(0, 10);
   if (!nodes.length) return '';
 
   return nodes.map((it) => {
-    let title = txt(it, 'title');
+    let title = it.title || '';
+    // Clean up titles
     title = title.replace(/\s-\s.*$/i, '').split(' | ')[0];
     
     return `
@@ -141,39 +141,34 @@ function build(xml, sourceName) {
 }
 
 async function fetchFeed() {
-  // Create an array of fetch promises for both feeds
   const fetchPromises = FEEDS.map(async (feed) => {
     try {
-      const res = await fetch(PROXY + encodeURIComponent(feed.url + '&t=' + Date.now()));
-      if (!res.ok) throw new Error('Proxy error');
+      // Fetching via rss2json API
+      const res = await fetch(API_URL + encodeURIComponent(feed.url));
+      if (!res.ok) throw new Error('API network error');
       
-      const text = await res.text();
-      const xml = new DOMParser().parseFromString(text, 'text/xml');
+      const data = await res.json();
       
-      if (xml.querySelector('parsererror') || !xml.querySelector('item')) {
-        throw new Error('Invalid XML');
+      // Check if the API successfully parsed the RSS
+      if (data.status !== 'ok') {
+        throw new Error('API failed to parse feed');
       }
 
-      return build(xml, feed.name); // Return the HTML chunk for this feed
+      return build(data.items, feed.name); 
     } catch (e) {
       console.warn(`Source ${feed.name} failed:`, e);
       return ''; // Return empty string if this specific feed fails
     }
   });
 
-  // Wait for both feeds to finish (whether they succeed or fail)
   const results = await Promise.all(fetchPromises);
-  
-  // Combine the HTML from all successful feeds
   const combinedHtml = results.join('');
 
   if (combinedHtml) {
-    // Duplicate the combined HTML once for the seamless infinite scroll
     TICK.innerHTML = combinedHtml + combinedHtml;
     TICK.classList.add('running');
     WRAP.classList.add('faded'); 
   } else {
-    // If combinedHtml is empty, it means ALL feeds failed
     showError();
   }
 }
