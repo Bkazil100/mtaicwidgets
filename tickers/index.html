@@ -11,7 +11,7 @@
     --fg: #FFFFFF;       
     --accent: #F5CA73;   
     --height: 50px;      
-    --speed: 15s;       
+    --speed: 160s; /* Increase to slow down, decrease to speed up */
   }
 
   html, body {
@@ -26,57 +26,70 @@
     background: var(--bar-bg);
     width: 100%;
     height: var(--height);
-    display: flex;
-    align-items: center;
-    justify-content: center; 
     position: relative;
   }
 
-  #wrap.faded {
-    -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
-    mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
-  }
-
- #ticker {
+  /* --- NEW: Layer System for Fading --- */
+  .layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     display: flex;
     align-items: center;
-    white-space: nowrap;
-    will-change: transform;
-    width: max-content; /* <-- THIS IS THE FIX */
-    min-width: 100%;    /* Keeps the error message centered if feed fails */
-    justify-content: center; 
+    transition: opacity 0.8s ease, filter 0.8s ease;
   }
 
-  #ticker.running {
+  #welcome-layer {
+    justify-content: center;
+    z-index: 1;
+  }
+
+  #ticker-layer {
     justify-content: flex-start;
+    z-index: 2;
+    -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  }
+
+  /* Visibility Classes controlled by JavaScript */
+  .hidden { opacity: 0; pointer-events: none; }
+  .visible { opacity: 1; pointer-events: auto; }
+  .dimmed { opacity: 0.4; filter: grayscale(1); }
+
+  /* --- UPGRADED: Bulletproof Ticker Track --- */
+  #ticker-track {
+    display: flex;
+    width: max-content;
+    will-change: transform;
     animation: scroll var(--speed) linear infinite;
   }
 
-  @keyframes scroll {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
+  /* Wraps the 10 headlines so the browser calculates exact 50% width */
+  .ticker-content {
+    display: flex;
+    flex-shrink: 0;
   }
 
+  @keyframes scroll {
+    0%   { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(-50%, 0, 0); }
+  }
+
+  /* --- Typography & Styling --- */
   .welcome-msg {
     color: var(--accent);
     font-size: 14px; 
     font-weight: 600;
     letter-spacing: 0.5px;
-    transition: opacity 0.5s ease;
-  }
-
-  .welcome-msg.dimmed {
-    opacity: 0.35;
-    filter: grayscale(1);
   }
 
   .news-item {
     display: flex;
     align-items: center;
     padding-right: 3.5rem;
+    flex-shrink: 0; /* Prevents text from squishing */
   }
 
-  /* Improved Source Tag Design */
   .meta {
     font-size: 10px;
     font-weight: 800;
@@ -105,31 +118,36 @@
 <body>
 
   <div id="wrap">
-    <div id="ticker">
-      <span class="welcome-msg">Welcome to MTA International Canada in Toronto</span>
+    <div id="welcome-layer" class="layer visible">
+      <span id="welcome-text" class="welcome-msg">Welcome to MTA International Canada in Toronto</span>
+    </div>
+
+    <div id="ticker-layer" class="layer hidden">
+      <div id="ticker-track">
+        </div>
     </div>
   </div>
 
 <script>
-// Multiple sources to combine
 const FEEDS = [
   { name: 'REUTERS', url: 'https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US%3Aen' },
   { name: 'BBC WORLD', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' }
 ];
 
-// Swapped to a dedicated, stable RSS-to-JSON API
 const API_URL = 'https://api.rss2json.com/v1/api.json?rss_url=';
-const TICK = document.getElementById('ticker');
-const WRAP = document.getElementById('wrap');
+
+// DOM Elements
+const WELCOME_LAYER = document.getElementById('welcome-layer');
+const TICKER_LAYER = document.getElementById('ticker-layer');
+const TICKER_TRACK = document.getElementById('ticker-track');
+const WELCOME_TEXT = document.getElementById('welcome-text');
 
 function build(items, sourceName) {
-  // Grab top 10 from each source
   const nodes = items.slice(0, 10);
   if (!nodes.length) return '';
 
   return nodes.map((it) => {
     let title = it.title || '';
-    // Clean up titles
     title = title.replace(/\s-\s.*$/i, '').split(' | ')[0];
     
     return `
@@ -142,23 +160,26 @@ function build(items, sourceName) {
 }
 
 async function fetchFeed() {
+  // 1. Fade OUT ticker, Fade IN Welcome message (for refreshing state)
+  TICKER_LAYER.classList.replace('visible', 'hidden');
+  WELCOME_LAYER.classList.replace('hidden', 'visible');
+  WELCOME_TEXT.classList.remove('dimmed'); 
+  
+  // Wait 800ms for the fade out to finish before doing heavy network loading
+  await new Promise(r => setTimeout(r, 800));
+
   const fetchPromises = FEEDS.map(async (feed) => {
     try {
-      // Fetching via rss2json API
       const res = await fetch(API_URL + encodeURIComponent(feed.url));
       if (!res.ok) throw new Error('API network error');
       
       const data = await res.json();
-      
-      // Check if the API successfully parsed the RSS
-      if (data.status !== 'ok') {
-        throw new Error('API failed to parse feed');
-      }
+      if (data.status !== 'ok') throw new Error('API failed to parse feed');
 
       return build(data.items, feed.name); 
     } catch (e) {
       console.warn(`Source ${feed.name} failed:`, e);
-      return ''; // Return empty string if this specific feed fails
+      return ''; 
     }
   });
 
@@ -166,22 +187,27 @@ async function fetchFeed() {
   const combinedHtml = results.join('');
 
   if (combinedHtml) {
-    TICK.innerHTML = combinedHtml + combinedHtml;
-    TICK.classList.add('running');
-    WRAP.classList.add('faded'); 
+    // 2. Wrap the HTML in two distinct blocks to guarantee no CSS jumps
+    TICKER_TRACK.innerHTML = `
+      <div class="ticker-content">${combinedHtml}</div>
+      <div class="ticker-content">${combinedHtml}</div>
+    `;
+
+    // 3. Reset animation to start fresh from the left side
+    TICKER_TRACK.style.animation = 'none';
+    TICKER_TRACK.offsetHeight; /* triggers reflow */
+    TICKER_TRACK.style.animation = null;
+
+    // 4. Fade OUT Welcome, Fade IN Ticker
+    WELCOME_LAYER.classList.replace('visible', 'hidden');
+    TICKER_LAYER.classList.replace('hidden', 'visible');
   } else {
-    showError();
+    // If all feeds fail, show dimmed welcome message
+    WELCOME_TEXT.classList.add('dimmed');
   }
 }
 
-function showError() {
-  TICK.innerHTML = '<span class="welcome-msg dimmed">Welcome to MTA International Canada in Toronto</span>';
-  TICK.classList.remove('running');
-  WRAP.classList.remove('faded');
-  TICK.style.justifyContent = 'center';
-}
-
-// Sequence: 4s delay on load, then 30 min refresh
+// Sequence: Wait 4s on load to show Welcome, then fetch. Refresh every 30m.
 setTimeout(fetchFeed, 4000);
 setInterval(fetchFeed, 1800000);
 </script>
