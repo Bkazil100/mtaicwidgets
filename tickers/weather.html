@@ -2,122 +2,78 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MTA Vaughan Weather Widget</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<title>MTA Weather Bar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #080F17;
-    --card-bg: rgba(255, 255, 255, 0.03);
     --accent: #F5CA73;
     --fg: #FFFFFF;
-    --dim: rgba(255, 255, 255, 0.6);
   }
 
   body {
-    margin: 0; padding: 20px;
+    margin: 0; padding: 0;
     background: var(--bg);
     font-family: 'Inter', sans-serif;
     color: var(--fg);
     display: flex;
+    align-items: center;
     justify-content: center;
-    align-items: center;
-    height: 100vh;
-    box-sizing: border-box;
+    height: 30px; /* Matches your iframe height */
+    overflow: hidden;
   }
 
-  .widget {
-    background: var(--card-bg);
-    border: 1px solid rgba(245, 202, 115, 0.2);
-    border-radius: 16px;
-    padding: 24px;
-    width: 100%;
-    max-width: 300px;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  }
-
-  .location {
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 2px;
-    color: var(--accent);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-
-  .main-weather {
+  .weather-bar {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    margin-bottom: 20px;
+    gap: 8px;
+    white-space: nowrap;
   }
 
-  .icon { font-size: 54px; margin: 10px 0; }
-  
+  .icon {
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+  }
+
   .temp {
-    font-size: 48px;
+    font-size: 14px;
     font-weight: 700;
-    line-height: 1;
+    color: var(--accent);
   }
 
-  .stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    border-top: 1px solid rgba(255,255,255,0.1);
-    padding-top: 15px;
+  .label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--fg);
   }
 
-  .stat-box { text-align: center; }
-  .stat-label { font-size: 10px; color: var(--dim); text-transform: uppercase; display: block; }
-  .stat-val { font-size: 14px; font-weight: 600; color: var(--fg); }
-
-  .updated {
-    font-size: 9px;
-    color: var(--dim);
-    margin-top: 20px;
-    font-style: italic;
+  /* Subtle fade-in when data loads */
+  #content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.5s ease;
+    opacity: 0;
   }
-
-  /* Pulse effect for the update dot */
-  .dot {
-    height: 6px; width: 6px;
-    background-color: var(--accent);
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 5px;
-    box-shadow: 0 0 8px var(--accent);
-  }
+  
+  #content.loaded { opacity: 1; }
 </style>
 </head>
 <body>
 
-  <div class="widget">
-    <div class="location">Vaughan, ON</div>
-    
-    <div class="main-weather">
-      <div id="w-icon" class="icon">--</div>
-      <div id="w-temp" class="temp">--°</div>
-    </div>
-
-    <div class="stats">
-      <div class="stat-box">
-        <span class="stat-label">Wind</span>
-        <span id="w-wind" class="stat-val">-- km/h</span>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Humidity</span>
-        <span id="w-hum" class="stat-val">--%</span>
-      </div>
-    </div>
-
-    <div class="updated">
-      <span class="dot"></span>Last updated: <span id="w-time">--:--</span>
+  <div class="weather-bar">
+    <div id="content">
+      <span id="w-icon" class="icon"></span>
+      <span id="w-temp" class="temp">--°C</span>
+      <span class="label">Vaughan, ON</span>
     </div>
   </div>
 
 <script>
-const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=43.8361&longitude=-79.4982&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=auto";
+const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=43.8361&longitude=-79.4982&current=temperature_2m,weather_code&timezone=auto";
 
 function getWeatherIcon(code) {
   if (code === 0) return "☀️";
@@ -133,20 +89,16 @@ async function updateWeather() {
     const res = await fetch(WEATHER_URL);
     const data = await res.json();
     
-    document.getElementById('w-temp').innerText = Math.round(data.current.temperature_2m) + "°";
+    document.getElementById('w-temp').innerText = Math.round(data.current.temperature_2m) + "°C";
     document.getElementById('w-icon').innerText = getWeatherIcon(data.current.weather_code);
-    document.getElementById('w-wind').innerText = Math.round(data.current.wind_speed_10m) + " km/h";
-    document.getElementById('w-hum').innerText = data.current.relative_humidity_2m + "%";
-    
-    const now = new Date();
-    document.getElementById('w-time').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('content').classList.add('loaded');
   } catch (e) {
-    console.error("Weather update failed");
+    console.error("Weather failed");
   }
 }
 
 updateWeather();
-setInterval(updateWeather, 900000); // Update every 15 minutes
+setInterval(updateWeather, 900000); // 15 min refresh
 </script>
 </body>
 </html>
