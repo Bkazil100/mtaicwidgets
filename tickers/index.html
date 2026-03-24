@@ -30,7 +30,6 @@
     align-items: center;
     justify-content: center; 
     position: relative;
-    transition: mask-image 0.5s ease;
   }
 
   #wrap.faded {
@@ -65,9 +64,8 @@
     transition: opacity 0.5s ease;
   }
 
-  /* The Dimmed State */
   .welcome-msg.dimmed {
-    opacity: 0.4;
+    opacity: 0.35;
     filter: grayscale(1);
   }
 
@@ -77,17 +75,17 @@
     padding-right: 3.5rem;
   }
 
-  /* Improved Source Design */
+  /* Improved Source Tag Design */
   .meta {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 1px;
     color: var(--bar-bg);
-    background: var(--accent); /* Solid gold tag for better visibility */
-    padding: 3px 7px;
+    background: var(--accent); 
+    padding: 3px 8px;
     border-radius: 3px;
     margin-right: 12px;
-    box-shadow: 0 0 10px rgba(245, 202, 115, 0.2);
+    text-transform: uppercase;
   }
 
   .headline {
@@ -99,7 +97,7 @@
   .separator {
     color: rgba(245, 202, 115, 0.2);
     margin-left: 3.5rem;
-    font-size: 20px;
+    font-size: 18px;
   }
 </style>
 </head>
@@ -107,29 +105,35 @@
 
   <div id="wrap">
     <div id="ticker">
-      <span id="status-msg" class="welcome-msg">Welcome to MTA International Canada in Toronto</span>
+      <span class="welcome-msg">Welcome to MTA International Canada in Toronto</span>
     </div>
   </div>
 
 <script>
-const FEED = 'https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US%3Aen';
+// Multiple sources for reliability
+const FEEDS = [
+  { name: 'REUTERS', url: 'https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US%3Aen' },
+  { name: 'BBC WORLD', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' }
+];
+
 const PROXY = 'https://api.allorigins.win/raw?url=';
 const TICK = document.getElementById('ticker');
 const WRAP = document.getElementById('wrap');
 
 const txt = (el, sel) => el.querySelector(sel)?.textContent?.trim() || '';
 
-function build(xml) {
+function build(xml, sourceName) {
   const nodes = [...xml.querySelectorAll('item')].slice(0, 20);
   if (!nodes.length) return '';
 
   const content = nodes.map((it) => {
     let title = txt(it, 'title');
-    title = title.replace(/\s-\sReuters$/i, '').split(' | ')[0];
+    // Clean up titles (removes " - Reuters" or " - BBC News")
+    title = title.replace(/\s-\s.*$/i, '').split(' | ')[0];
     
     return `
       <div class="news-item">
-        <span class="meta">REUTERS</span>
+        <span class="meta">${sourceName}</span>
         <span class="headline">${title}</span>
         <span class="separator">•</span>
       </div>`;
@@ -139,43 +143,46 @@ function build(xml) {
 }
 
 async function fetchFeed() {
-  try {
-    const res = await fetch(PROXY + encodeURIComponent(FEED + '&t=' + Date.now()));
-    if (!res.ok) throw new Error('Proxy error');
-    
-    const text = await res.text();
-    const xml = new DOMParser().parseFromString(text, 'text/xml');
-    
-    if (xml.querySelector('parsererror') || !xml.querySelector('item')) {
-      throw new Error('Invalid XML');
-    }
+  // Loop through feeds until one works
+  for (const feed of FEEDS) {
+    try {
+      const res = await fetch(PROXY + encodeURIComponent(feed.url + '&t=' + Date.now()));
+      if (!res.ok) throw new Error('Proxy error');
+      
+      const text = await res.text();
+      const xml = new DOMParser().parseFromString(text, 'text/xml');
+      
+      if (xml.querySelector('parsererror') || !xml.querySelector('item')) {
+        throw new Error('Invalid XML');
+      }
 
-    const html = build(xml);
-    
-    if (html) {
-      TICK.innerHTML = html;
-      TICK.classList.add('running');
-      WRAP.classList.add('faded'); 
-    } else {
-      showError();
+      const html = build(xml, feed.name);
+      
+      if (html) {
+        TICK.innerHTML = html;
+        TICK.classList.add('running');
+        WRAP.classList.add('faded'); 
+        return; // Exit function if successful
+      }
+    } catch (e) {
+      console.warn(`Source ${feed.name} failed, trying next...`);
     }
-  } catch (e) {
-    console.error("Feed Error:", e);
-    showError();
   }
+  
+  // If all feeds fail
+  showError();
 }
 
 function showError() {
-  // Sets the message and adds the .dimmed class
   TICK.innerHTML = '<span class="welcome-msg dimmed">Welcome to MTA International Canada in Toronto</span>';
   TICK.classList.remove('running');
   WRAP.classList.remove('faded');
   TICK.style.justifyContent = 'center';
 }
 
-// Start sequence
+// Sequence: 4s delay on load, then 30 min refresh
 setTimeout(fetchFeed, 4000);
-setInterval(fetchFeed, 1800000); // 30 min refresh
+setInterval(fetchFeed, 1800000);
 </script>
 </body>
 </html>
