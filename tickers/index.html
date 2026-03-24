@@ -37,12 +37,13 @@
     mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
   }
 
-  #ticker {
-    display: inline-flex;
+ #ticker {
+    display: flex;
     align-items: center;
     white-space: nowrap;
     will-change: transform;
-    width: 100%;
+    width: max-content; /* <-- THIS IS THE FIX */
+    min-width: 100%;    /* Keeps the error message centered if feed fails */
     justify-content: center; 
   }
 
