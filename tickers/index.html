@@ -92,85 +92,9 @@
     color: rgba(245, 202, 115, 0.3);
     margin-left: 3.5rem;
   }
-
-  .error-dash { color: var(--accent); font-weight: bold; }
 </style>
 </head>
 <body>
 
   <div id="wrap">
-    <div id="ticker">
-      <span class="welcome-msg">Welcome to MTA International Canada in Toronto</span>
-    </div>
-  </div>
-
-<script>
-const FEED = 'https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US%3Aen';
-const PROXY = 'https://api.allorigins.win/raw?url=';
-const TICK = document.getElementById('ticker');
-const WRAP = document.getElementById('wrap');
-
-const txt = (el, sel) => el.querySelector(sel)?.textContent?.trim() || '';
-
-function build(xml) {
-  const nodes = [...xml.querySelectorAll('item')].slice(0, 20);
-  if (!nodes.length) return '';
-
-  const content = nodes.map((it) => {
-    let title = txt(it, 'title');
-    
-    // Updated Logic: Removes both " - Reuters" and " | Reuters" from the end
-    title = title.replace(/\s-\sReuters$/i, '').split(' | ')[0];
-    
-    return `
-      <div class="news-item">
-        <span class="meta">REUTERS</span>
-        <span class="headline">${title}</span>
-        <span class="separator">•</span>
-      </div>`;
-  }).join('');
-
-  // Duplicated for the infinite loop animation
-  return content + content; 
-}
-
-async function fetchFeed() {
-  // Maintaining your exact 4 second delay
-  await new Promise(r => setTimeout(r, 4000));
-
-  try {
-    const res = await fetch(PROXY + encodeURIComponent(FEED));
-    if (!res.ok) throw new Error('Proxy error');
-    
-    const text = await res.text();
-    const xml = new DOMParser().parseFromString(text, 'text/xml');
-    
-    // Check if XML is valid and has items
-    if (xml.querySelector('parsererror') || !xml.querySelector('item')) {
-      throw new Error('Invalid XML');
-    }
-
-    const html = build(xml);
-    
-    if (html) {
-      TICK.innerHTML = html;
-      TICK.classList.add('running');
-      WRAP.classList.add('faded'); 
-    } else {
-      showError();
-    }
-  } catch (e) {
-    console.error("Feed Error:", e);
-    showError();
-  }
-}
-
-function showError() {
-  TICK.innerHTML = '<span class="error-dash">Error</span>';
-  TICK.style.justifyContent = 'center';
-}
-
-fetchFeed();
-</script>
-</body>
-</html>
+    <div id="ticker
