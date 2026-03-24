@@ -34,8 +34,8 @@
   }
 
   #wrap.faded {
-    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
   }
 
   #ticker {
@@ -59,27 +59,35 @@
 
   .welcome-msg {
     color: var(--accent);
-    font-size: 15px; 
+    font-size: 14px; 
     font-weight: 600;
     letter-spacing: 0.5px;
+    transition: opacity 0.5s ease;
+  }
+
+  /* The Dimmed State */
+  .welcome-msg.dimmed {
+    opacity: 0.4;
+    filter: grayscale(1);
   }
 
   .news-item {
     display: flex;
     align-items: center;
-    padding-right: 3rem;
+    padding-right: 3.5rem;
   }
 
+  /* Improved Source Design */
   .meta {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: rgba(245, 202, 115, 0.1);
-    padding: 2px 8px;
-    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--bar-bg);
+    background: var(--accent); /* Solid gold tag for better visibility */
+    padding: 3px 7px;
+    border-radius: 3px;
     margin-right: 12px;
-    border: 1px solid rgba(245, 202, 115, 0.2);
+    box-shadow: 0 0 10px rgba(245, 202, 115, 0.2);
   }
 
   .headline {
@@ -89,8 +97,9 @@
   }
 
   .separator {
-    color: rgba(245, 202, 115, 0.3);
+    color: rgba(245, 202, 115, 0.2);
     margin-left: 3.5rem;
+    font-size: 20px;
   }
 </style>
 </head>
@@ -98,7 +107,7 @@
 
   <div id="wrap">
     <div id="ticker">
-      <span class="welcome-msg">Welcome to MTA International Canada in Toronto</span>
+      <span id="status-msg" class="welcome-msg">Welcome to MTA International Canada in Toronto</span>
     </div>
   </div>
 
@@ -131,7 +140,6 @@ function build(xml) {
 
 async function fetchFeed() {
   try {
-    // Cache buster added to the URL (&t=...)
     const res = await fetch(PROXY + encodeURIComponent(FEED + '&t=' + Date.now()));
     if (!res.ok) throw new Error('Proxy error');
     
@@ -158,18 +166,16 @@ async function fetchFeed() {
 }
 
 function showError() {
-  // Reverts to Welcome message instead of a dash
-  TICK.innerHTML = '<span class="welcome-msg">Welcome to MTA International Canada in Toronto</span>';
+  // Sets the message and adds the .dimmed class
+  TICK.innerHTML = '<span class="welcome-msg dimmed">Welcome to MTA International Canada in Toronto</span>';
   TICK.classList.remove('running');
   WRAP.classList.remove('faded');
   TICK.style.justifyContent = 'center';
 }
 
-// Initial load after 4 seconds
+// Start sequence
 setTimeout(fetchFeed, 4000);
-
-// Auto-refresh every 30 minutes
-setInterval(fetchFeed, 1800000);
+setInterval(fetchFeed, 1800000); // 30 min refresh
 </script>
 </body>
 </html>
