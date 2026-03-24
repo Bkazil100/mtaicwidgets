@@ -97,4 +97,79 @@
 <body>
 
   <div id="wrap">
-    <div id="ticker
+    <div id="ticker">
+      <span class="welcome-msg">Welcome to MTA International Canada in Toronto</span>
+    </div>
+  </div>
+
+<script>
+const FEED = 'https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US%3Aen';
+const PROXY = 'https://api.allorigins.win/raw?url=';
+const TICK = document.getElementById('ticker');
+const WRAP = document.getElementById('wrap');
+
+const txt = (el, sel) => el.querySelector(sel)?.textContent?.trim() || '';
+
+function build(xml) {
+  const nodes = [...xml.querySelectorAll('item')].slice(0, 20);
+  if (!nodes.length) return '';
+
+  const content = nodes.map((it) => {
+    let title = txt(it, 'title');
+    title = title.replace(/\s-\sReuters$/i, '').split(' | ')[0];
+    
+    return `
+      <div class="news-item">
+        <span class="meta">REUTERS</span>
+        <span class="headline">${title}</span>
+        <span class="separator">•</span>
+      </div>`;
+  }).join('');
+
+  return content + content; 
+}
+
+async function fetchFeed() {
+  try {
+    // Cache buster added to the URL (&t=...)
+    const res = await fetch(PROXY + encodeURIComponent(FEED + '&t=' + Date.now()));
+    if (!res.ok) throw new Error('Proxy error');
+    
+    const text = await res.text();
+    const xml = new DOMParser().parseFromString(text, 'text/xml');
+    
+    if (xml.querySelector('parsererror') || !xml.querySelector('item')) {
+      throw new Error('Invalid XML');
+    }
+
+    const html = build(xml);
+    
+    if (html) {
+      TICK.innerHTML = html;
+      TICK.classList.add('running');
+      WRAP.classList.add('faded'); 
+    } else {
+      showError();
+    }
+  } catch (e) {
+    console.error("Feed Error:", e);
+    showError();
+  }
+}
+
+function showError() {
+  // Reverts to Welcome message instead of a dash
+  TICK.innerHTML = '<span class="welcome-msg">Welcome to MTA International Canada in Toronto</span>';
+  TICK.classList.remove('running');
+  WRAP.classList.remove('faded');
+  TICK.style.justifyContent = 'center';
+}
+
+// Initial load after 4 seconds
+setTimeout(fetchFeed, 4000);
+
+// Auto-refresh every 30 minutes
+setInterval(fetchFeed, 1800000);
+</script>
+</body>
+</html>
