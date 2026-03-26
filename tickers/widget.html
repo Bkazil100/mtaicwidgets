@@ -20,7 +20,7 @@
     color: var(--fg);
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     height: 64px;
     width: 900px;
     overflow: hidden;
@@ -31,48 +31,45 @@
     width: 100%;
     height: 100%;
     align-items: center;
-    padding: 0 40px;
+    padding: 0 30px;
     box-sizing: border-box;
+    border-bottom: 1px solid var(--border);
     background: linear-gradient(90deg, var(--bg) 0%, var(--glass) 50%, var(--bg) 100%);
-    opacity: 0;
-    transition: opacity 1s ease;
   }
 
-  #main-container.loaded { opacity: 1; }
-
-  /* Section 1: LIVE CLOCK */
+  /* Section 1: The Clock (The Anchor) */
   .clock-section {
     display: flex;
     align-items: baseline;
-    gap: 10px;
-    min-width: 240px;
+    gap: 8px;
+    min-width: 220px;
   }
-  #time { font-size: 36px; font-weight: 800; color: var(--fg); letter-spacing: -1.5px; }
+  #time { font-size: 32px; font-weight: 800; color: var(--fg); letter-spacing: -1px; }
   #ampm { font-size: 14px; font-weight: 600; color: var(--accent); text-transform: uppercase; }
 
-  /* Section 2: DATE & LOCATION */
+  /* Section 2: Date & Location */
   .date-section {
     flex-grow: 1;
-    padding-left: 35px;
+    padding-left: 30px;
     border-left: 1px solid rgba(255,255,255,0.1);
     margin-left: 20px;
   }
-  #date { font-size: 15px; font-weight: 600; color: var(--fg); display: block; margin-bottom: 2px; }
+  #date { font-size: 14px; font-weight: 600; color: var(--fg); display: block; }
   .location { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; }
 
-  /* Section 3: WEATHER CAPSULE */
+  /* Section 3: Weather (The Detail) */
   .weather-section {
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: 15px;
     background: var(--glass);
-    padding: 10px 25px;
-    border-radius: 50px;
-    border: 1px solid rgba(255,255,255,0.08);
+    padding: 8px 20px;
+    border-radius: 40px;
+    border: 1px solid rgba(255,255,255,0.05);
   }
-  #w-icon { font-size: 28px; }
-  .temp-group { line-height: 1.1; }
-  #temp { font-size: 24px; font-weight: 800; color: var(--fg); }
+  #w-icon { font-size: 24px; }
+  .temp-group { line-height: 1; }
+  #temp { font-size: 22px; font-weight: 800; color: var(--fg); }
   #condition { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; display: block; }
 
 </style>
@@ -100,8 +97,11 @@
   </div>
 
 <script>
+  // 1. LIVE CLOCK & DATE LOGIC
   function updateClock() {
     const now = new Date();
+    
+    // Time
     let h = now.getHours();
     let m = now.getMinutes();
     let s = now.getSeconds();
@@ -113,10 +113,12 @@
     document.getElementById('time').innerText = `${h}:${m}:${s}`;
     document.getElementById('ampm').innerText = ampm;
 
+    // Date
     const options = { weekday: 'long', month: 'long', day: 'numeric' };
     document.getElementById('date').innerText = now.toLocaleDateString('en-US', options);
   }
 
+  // 2. WEATHER LOGIC (Vaughan)
   const LAT = 43.8361, LON = -79.4982;
   const W_URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&timezone=auto`;
 
@@ -145,14 +147,14 @@
       document.getElementById('temp').innerText = Math.round(data.current.temperature_2m) + "°";
       document.getElementById('w-icon').innerText = getIcon(data.current.weather_code);
       document.getElementById('condition').innerText = getDesc(data.current.weather_code);
-      document.getElementById('main-container').classList.add('loaded');
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error("Weather Error", e); }
   }
 
+  // Initialization
   setInterval(updateClock, 1000);
   updateClock();
   updateWeather();
-  setInterval(updateWeather, 1800000);
+  setInterval(updateWeather, 1800000); // 30 min refresh
 </script>
 </body>
 </html>
