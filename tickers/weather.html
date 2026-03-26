@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MTA Weather Bar</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<title>MTA Weather Bar - Large</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #080F17;
@@ -19,56 +19,74 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 30px; /* Matches your iframe height */
+    height: 60px; /* Target height */
     overflow: hidden;
   }
 
-  .weather-bar {
+  #content {
     display: flex;
     align-items: center;
-    gap: 8px;
-    white-space: nowrap;
+    gap: 15px;
+    opacity: 0;
+    transition: opacity 0.5s ease;
   }
 
+  #content.loaded { opacity: 1; }
+
   .icon {
-    font-size: 16px;
+    font-size: 32px; /* Large emoji */
     display: flex;
     align-items: center;
   }
 
   .temp {
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 28px; /* High visibility temperature */
+    font-weight: 800;
     color: var(--accent);
+    line-height: 1;
+  }
+
+  .divider {
+    width: 2px;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .info-stack {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .label {
-    font-size: 11px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     color: var(--fg);
+    line-height: 1.1;
   }
 
-  /* Subtle fade-in when data loads */
-  #content {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: opacity 0.5s ease;
-    opacity: 0;
+  .sub-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
-  
-  #content.loaded { opacity: 1; }
 </style>
 </head>
 <body>
 
-  <div class="weather-bar">
-    <div id="content">
-      <span id="w-icon" class="icon"></span>
-      <span id="w-temp" class="temp">--°C</span>
-      <span class="label">Vaughan, ON</span>
+  <div id="content">
+    <div id="w-icon" class="icon"></div>
+    <div id="w-temp" class="temp">--°</div>
+    
+    <div class="divider"></div>
+
+    <div class="info-stack">
+      <div class="label">Vaughan, ON</div>
+      <div id="w-time" class="sub-label">Updated --:--</div>
     </div>
   </div>
 
@@ -89,16 +107,21 @@ async function updateWeather() {
     const res = await fetch(WEATHER_URL);
     const data = await res.json();
     
-    document.getElementById('w-temp').innerText = Math.round(data.current.temperature_2m) + "°C";
+    document.getElementById('w-temp').innerText = Math.round(data.current.temperature_2m) + "°";
     document.getElementById('w-icon').innerText = getWeatherIcon(data.current.weather_code);
+    
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('w-time').innerText = "Updated " + timeStr;
+    
     document.getElementById('content').classList.add('loaded');
   } catch (e) {
-    console.error("Weather failed");
+    console.error("Weather update failed");
   }
 }
 
 updateWeather();
-setInterval(updateWeather, 900000); // 15 min refresh
+setInterval(updateWeather, 900000);
 </script>
 </body>
 </html>
