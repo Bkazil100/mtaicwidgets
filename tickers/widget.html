@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MTA Broadcast Welcome Bar</title>
+<title>MTA Broadcast Welcome Bar - Forecast</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -31,7 +31,7 @@
     height: 100%;
     align-items: center;
     justify-content: space-between;
-    padding: 0 45px;
+    padding: 0 35px;
     box-sizing: border-box;
     background: linear-gradient(90deg, var(--bg) 0%, var(--glass) 50%, var(--bg) 100%);
     border-bottom: 1px solid var(--border);
@@ -41,44 +41,53 @@
   .clock-section {
     display: flex;
     align-items: baseline;
-    gap: 12px;
-    min-width: 170px;
+    gap: 10px;
+    min-width: 160px;
   }
-  #time { font-size: 52px; font-weight: 800; color: var(--fg); letter-spacing: -2.5px; line-height: 1; }
-  #ampm { font-size: 18px; font-weight: 600; color: var(--accent); text-transform: uppercase; }
+  #time { font-size: 48px; font-weight: 800; color: var(--fg); letter-spacing: -2.5px; line-height: 1; }
+  #ampm { font-size: 16px; font-weight: 600; color: var(--accent); text-transform: uppercase; }
 
-  /* CENTER: Date & Location */
-  .center-section {
-    flex-grow: 1;
-    padding-left: 35px;
+  /* CENTER-LEFT: Date & Location */
+  .center-left {
+    padding-left: 25px;
     border-left: 1px solid rgba(255,255,255,0.1);
-    margin-left: 35px;
+    margin-left: 20px;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    min-width: 180px;
   }
-  #date { font-size: 19px; font-weight: 600; color: var(--fg); margin-bottom: 3px; }
-  .location { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 2.5px; }
+  #date { font-size: 16px; font-weight: 600; color: var(--fg); margin-bottom: 2px; }
+  .location { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; }
+
+  /* CENTER-RIGHT: 5-Day Forecast Strip */
+  .forecast-strip {
+    display: flex;
+    gap: 18px;
+    margin: 0 20px;
+    padding: 0 20px;
+    border-left: 1px solid rgba(255,255,255,0.1);
+  }
+  .f-day { display: flex; flex-direction: column; align-items: center; }
+  .f-label { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 2px; }
+  .f-icon { font-size: 16px; margin-bottom: 2px; }
+  .f-temp { font-size: 11px; font-weight: 700; color: var(--fg); }
+  .f-low { color: rgba(255,255,255,0.3); font-weight: 400; font-size: 10px; margin-left: 2px; }
 
   /* RIGHT: Weather Capsule */
   .weather-section {
     display: flex;
     align-items: center;
-    gap: 22px;
+    gap: 15px;
     background: var(--glass);
-    padding: 12px 30px;
-    border-radius: 50px;
+    padding: 10px 20px;
+    border-radius: 40px;
     border: 1px solid rgba(245, 202, 115, 0.15);
   }
-  
-  #w-icon { font-size: 36px; }
-  .temp-main { line-height: 1; text-align: left; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 18px; }
-  #temp { font-size: 32px; font-weight: 800; color: var(--fg); }
-  #condition { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; display: block; margin-top: 3px; }
-
-  .weather-details { display: flex; flex-direction: column; gap: 3px; min-width: 65px; }
-  .w-stat { font-size: 10px; font-weight: 700; color: var(--accent); white-space: nowrap; }
-  .w-stat span { color: rgba(255,255,255,0.4); font-weight: 500; margin-right: 5px; }
+  #w-icon { font-size: 30px; }
+  .temp-main { line-height: 1; text-align: left; }
+  #temp { font-size: 28px; font-weight: 800; color: var(--fg); }
+  #condition { font-size: 9px; font-weight: 600; color: var(--accent); text-transform: uppercase; display: block; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -89,20 +98,19 @@
       <span id="ampm">--</span>
     </div>
 
-    <div class="center-section">
+    <div class="center-left">
       <span id="date">--</span>
-      <span class="location">MTA Canada • Vaughan Studio</span>
+      <span class="location">Vaughan Studio</span>
     </div>
+
+    <div id="forecast-strip" class="forecast-strip">
+      </div>
 
     <div class="weather-section">
       <div id="w-icon">☀️</div>
       <div class="temp-main">
         <span id="temp">--°</span>
-        <span id="condition">Loading...</span>
-      </div>
-      <div class="weather-details">
-        <div class="w-stat"><span>WIND</span> <span id="w-wind">--</span></div>
-        <div class="w-stat"><span>HUM</span> <span id="w-hum">--</span>%</div>
+        <span id="condition">--</span>
       </div>
     </div>
   </div>
@@ -115,7 +123,6 @@
     let ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
     m = m < 10 ? '0' + m : m;
-    
     document.getElementById('time').innerText = `${h}:${m}`;
     document.getElementById('ampm').innerText = ampm;
 
@@ -124,7 +131,7 @@
   }
 
   const LAT = 43.8361, LON = -79.4982;
-  const W_URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&timezone=auto`;
+  const W_URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6`;
 
   function getIcon(code) {
     if (code === 0) return "☀️";
@@ -148,11 +155,26 @@
     try {
       const res = await fetch(W_URL);
       const data = await res.json();
+      
+      // Current Weather
       document.getElementById('temp').innerText = Math.round(data.current.temperature_2m) + "°";
       document.getElementById('w-icon').innerText = getIcon(data.current.weather_code);
       document.getElementById('condition').innerText = getDesc(data.current.weather_code);
-      document.getElementById('w-wind').innerText = Math.round(data.current.wind_speed_10m) + "km/h";
-      document.getElementById('w-hum').innerText = data.current.relative_humidity_2m;
+
+      // 5-Day Forecast
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      let fHtml = '';
+      for (let i = 1; i <= 5; i++) {
+        const d = new Date(data.daily.time[i] + 'T00:00');
+        fHtml += `
+          <div class="f-day">
+            <span class="f-label">${days[d.getDay()]}</span>
+            <span class="f-icon">${getIcon(data.daily.weather_code[i])}</span>
+            <span class="f-temp">${Math.round(data.daily.temperature_2m_max[i])}°<span class="f-low">${Math.round(data.daily.temperature_2m_min[i])}°</span></span>
+          </div>`;
+      }
+      document.getElementById('forecast-strip').innerHTML = fHtml;
+
     } catch(e) { console.error(e); }
   }
 
