@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MTA Weather Bar - Large</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;800&display=swap" rel="stylesheet">
+<title>MTA Weather Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #080F17;
     --accent: #F5CA73;
     --fg: #FFFFFF;
+    --border: rgba(245, 202, 115, 0.15);
   }
 
   body {
@@ -19,81 +20,77 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 60px; /* Target height */
+    height: 60px;
     overflow: hidden;
   }
 
-  #content {
+  #container {
     display: flex;
+    width: 650px;
+    height: 100%;
     align-items: center;
-    gap: 15px;
     opacity: 0;
-    transition: opacity 0.5s ease;
+    transition: opacity 0.8s ease;
   }
 
-  #content.loaded { opacity: 1; }
+  #container.loaded { opacity: 1; }
 
-  .icon {
-    font-size: 32px; /* Large emoji */
+  /* Current Weather Section */
+  .current-box {
     display: flex;
     align-items: center;
+    padding: 0 20px;
+    border-right: 1px solid var(--border);
+    gap: 12px;
+    min-width: 180px;
   }
 
-  .temp {
-    font-size: 28px; /* High visibility temperature */
-    font-weight: 800;
-    color: var(--accent);
-    line-height: 1;
+  .c-icon { font-size: 32px; }
+  .c-temp { font-size: 28px; font-weight: 800; color: var(--accent); }
+  .c-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* Forecast Section */
+  .forecast-box {
+    display: flex;
+    flex-grow: 1;
+    justify-content: space-around;
+    padding: 0 10px;
   }
 
-  .divider {
-    width: 2px;
-    height: 30px;
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .info-stack {
+  .f-day {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    align-items: center;
+    text-align: center;
   }
 
-  .label {
-    font-size: 14px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--fg);
-    line-height: 1.1;
-  }
-
-  .sub-label {
-    font-size: 10px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.5);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
+  .f-name { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 2px; }
+  .f-icon { font-size: 18px; margin-bottom: 2px; }
+  .f-temps { font-size: 12px; font-weight: 600; }
+  .high { color: var(--accent); }
+  .low { color: rgba(255,255,255,0.4); margin-left: 4px; }
 </style>
 </head>
 <body>
 
-  <div id="content">
-    <div id="w-icon" class="icon"></div>
-    <div id="w-temp" class="temp">--°</div>
-    
-    <div class="divider"></div>
-
-    <div class="info-stack">
-      <div class="label">Vaughan, ON</div>
-      <div id="w-time" class="sub-label">Updated --:--</div>
+  <div id="container">
+    <div class="current-box">
+      <div id="cur-icon" class="c-icon"></div>
+      <div class="c-info">
+        <div id="cur-temp" class="c-temp">--°</div>
+        <div class="c-label">Vaughan</div>
+      </div>
     </div>
+
+    <div id="forecast" class="forecast-box">
+      </div>
   </div>
 
 <script>
-const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=43.8361&longitude=-79.4982&current=temperature_2m,weather_code&timezone=auto";
+const LAT = 43.8361, LON = -79.4982;
+const URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5`;
 
-function getWeatherIcon(code) {
+function getIcon(code) {
   if (code === 0) return "☀️";
   if (code <= 3) return "☁️";
   if (code <= 48) return "🌫️";
@@ -102,26 +99,40 @@ function getWeatherIcon(code) {
   return "⛈️";
 }
 
-async function updateWeather() {
+async function update() {
   try {
-    const res = await fetch(WEATHER_URL);
+    const res = await fetch(URL);
     const data = await res.json();
     
-    document.getElementById('w-temp').innerText = Math.round(data.current.temperature_2m) + "°";
-    document.getElementById('w-icon').innerText = getWeatherIcon(data.current.weather_code);
+    // Set Current
+    document.getElementById('cur-temp').innerText = Math.round(data.current.temperature_2m) + "°";
+    document.getElementById('cur-icon').innerText = getIcon(data.current.weather_code);
     
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    document.getElementById('w-time').innerText = "Updated " + timeStr;
+    // Set Forecast (Skipping today, showing next 4 days)
+    let fHtml = '';
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     
-    document.getElementById('content').classList.add('loaded');
-  } catch (e) {
-    console.error("Weather update failed");
-  }
+    for (let i = 1; i < 5; i++) {
+      const date = new Date(data.daily.time[i] + 'T00:00');
+      const dayName = days[date.getDay()];
+      fHtml += `
+        <div class="f-day">
+          <span class="f-name">${dayName}</span>
+          <span class="f-icon">${getIcon(data.daily.weather_code[i])}</span>
+          <span class="f-temps">
+            <span class="high">${Math.round(data.daily.temperature_2m_max[i])}°</span>
+            <span class="low">${Math.round(data.daily.temperature_2m_min[i])}°</span>
+          </span>
+        </div>`;
+    }
+    
+    document.getElementById('forecast').innerHTML = fHtml;
+    document.getElementById('container').classList.add('loaded');
+  } catch (e) { console.error(e); }
 }
 
-updateWeather();
-setInterval(updateWeather, 900000);
+update();
+setInterval(update, 1800000);
 </script>
 </body>
 </html>
