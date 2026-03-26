@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MTA Premium Wide Widget</title>
+<title>MTA Broadcast Welcome Bar</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -19,80 +19,90 @@
     font-family: 'Inter', sans-serif;
     color: var(--fg);
     display: flex;
+    justify-content: center;
     align-items: center;
-    height: 80px; /* New height */
-    width: 100%;
+    height: 80px;
     overflow: hidden;
   }
 
   #main-container {
     display: flex;
-    width: 100%;
+    width: 900px;
     height: 100%;
     align-items: center;
-    padding: 0 5%; /* Percentage padding for responsiveness */
+    justify-content: space-between;
+    padding: 0 45px;
     box-sizing: border-box;
     background: linear-gradient(90deg, var(--bg) 0%, var(--glass) 50%, var(--bg) 100%);
     border-bottom: 1px solid var(--border);
   }
 
-  /* Section 1: LIVE CLOCK */
+  /* LEFT: Time */
   .clock-section {
     display: flex;
     align-items: baseline;
-    gap: 15px;
-    min-width: 200px;
+    gap: 12px;
+    min-width: 170px;
   }
-  #time { font-size: 48px; font-weight: 800; color: var(--fg); letter-spacing: -2px; line-height: 1; }
+  #time { font-size: 52px; font-weight: 800; color: var(--fg); letter-spacing: -2.5px; line-height: 1; }
   #ampm { font-size: 18px; font-weight: 600; color: var(--accent); text-transform: uppercase; }
 
-  /* Section 2: DATE & LOCATION */
-  .date-section {
+  /* CENTER: Date & Location */
+  .center-section {
     flex-grow: 1;
-    padding-left: 40px;
+    padding-left: 35px;
     border-left: 1px solid rgba(255,255,255,0.1);
-    margin-left: 30px;
+    margin-left: 35px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
-  #date { font-size: 18px; font-weight: 600; color: var(--fg); display: block; margin-bottom: 4px; }
-  .location { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 3px; }
+  #date { font-size: 19px; font-weight: 600; color: var(--fg); margin-bottom: 3px; }
+  .location { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 2.5px; }
 
-  /* Section 3: WEATHER CAPSULE */
+  /* RIGHT: Weather Capsule */
   .weather-section {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 22px;
     background: var(--glass);
     padding: 12px 30px;
-    border-radius: 60px;
+    border-radius: 50px;
     border: 1px solid rgba(245, 202, 115, 0.15);
-    transition: transform 0.3s ease;
   }
   
   #w-icon { font-size: 36px; }
-  .temp-group { line-height: 1.1; }
-  #temp { font-size: 28px; font-weight: 800; color: var(--fg); }
-  #condition { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; display: block; }
+  .temp-main { line-height: 1; text-align: left; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 18px; }
+  #temp { font-size: 32px; font-weight: 800; color: var(--fg); }
+  #condition { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; display: block; margin-top: 3px; }
 
+  .weather-details { display: flex; flex-direction: column; gap: 3px; min-width: 65px; }
+  .w-stat { font-size: 10px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+  .w-stat span { color: rgba(255,255,255,0.4); font-weight: 500; margin-right: 5px; }
 </style>
 </head>
 <body>
 
   <div id="main-container">
     <div class="clock-section">
-      <span id="time">00:00</span>
-      <span id="ampm">AM</span>
+      <span id="time">--:--</span>
+      <span id="ampm">--</span>
     </div>
 
-    <div class="date-section">
-      <span id="date">Thursday, March 26</span>
+    <div class="center-section">
+      <span id="date">--</span>
       <span class="location">MTA Canada • Vaughan Studio</span>
     </div>
 
     <div class="weather-section">
       <div id="w-icon">☀️</div>
-      <div class="temp-group">
+      <div class="temp-main">
         <span id="temp">--°</span>
         <span id="condition">Loading...</span>
+      </div>
+      <div class="weather-details">
+        <div class="w-stat"><span>WIND</span> <span id="w-wind">--</span></div>
+        <div class="w-stat"><span>HUM</span> <span id="w-hum">--</span>%</div>
       </div>
     </div>
   </div>
@@ -114,7 +124,7 @@
   }
 
   const LAT = 43.8361, LON = -79.4982;
-  const W_URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&timezone=auto`;
+  const W_URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&timezone=auto`;
 
   function getIcon(code) {
     if (code === 0) return "☀️";
@@ -126,11 +136,11 @@
   }
 
   function getDesc(code) {
-    if (code === 0) return "Clear Sky";
-    if (code <= 3) return "Partly Cloudy";
+    if (code === 0) return "Clear";
+    if (code <= 3) return "Cloudy";
     if (code <= 48) return "Foggy";
     if (code <= 67) return "Rainy";
-    if (code <= 77) return "Snowing";
+    if (code <= 77) return "Snowy";
     return "Stormy";
   }
 
@@ -141,10 +151,12 @@
       document.getElementById('temp').innerText = Math.round(data.current.temperature_2m) + "°";
       document.getElementById('w-icon').innerText = getIcon(data.current.weather_code);
       document.getElementById('condition').innerText = getDesc(data.current.weather_code);
-    } catch(e) { console.error("Weather failed", e); }
+      document.getElementById('w-wind').innerText = Math.round(data.current.wind_speed_10m) + "km/h";
+      document.getElementById('w-hum').innerText = data.current.relative_humidity_2m;
+    } catch(e) { console.error(e); }
   }
 
-  setInterval(updateClock, 1000); // Check every second to ensure minute flips exactly
+  setInterval(updateClock, 1000);
   updateClock();
   updateWeather();
   setInterval(updateWeather, 1800000);
