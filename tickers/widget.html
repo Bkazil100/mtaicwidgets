@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MTA Balanced Dashboard</title>
+<title>MTA Left-Aligned Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -19,7 +19,7 @@
     font-family: 'Inter', sans-serif;
     color: var(--fg);
     display: flex;
-    justify-content: center;
+    justify-content: flex-start; /* Aligns the container to the left */
     align-items: center;
     height: 80px;
     overflow: hidden;
@@ -30,8 +30,8 @@
     width: 900px;
     height: 100%;
     align-items: center;
-    justify-content: space-between;
-    padding: 0 30px;
+    justify-content: flex-start; /* Aligns content inside to the left */
+    padding-left: 40px; /* Matches the margin of your other SharePoint parts */
     box-sizing: border-box;
     background: linear-gradient(90deg, var(--bg) 0%, var(--glass) 50%, var(--bg) 100%);
     border-bottom: 1px solid var(--border);
@@ -41,32 +41,34 @@
   .clock-section {
     display: flex;
     align-items: baseline;
-    gap: 8px;
-    min-width: 150px;
+    gap: 10px;
+    margin-right: 40px; /* Fixed gap to keep next section left-aligned */
   }
-  #time { font-size: 42px; font-weight: 800; color: var(--fg); letter-spacing: -2px; }
-  #ampm { font-size: 14px; font-weight: 600; color: var(--accent); text-transform: uppercase; }
+  #time { font-size: 44px; font-weight: 800; color: var(--fg); letter-spacing: -2px; }
+  #ampm { font-size: 16px; font-weight: 600; color: var(--accent); text-transform: uppercase; }
 
   /* --- SECTION 2: DATE --- */
   .date-section {
     border-left: 1px solid rgba(255,255,255,0.1);
-    padding-left: 20px;
-    min-width: 160px;
+    padding-left: 25px;
+    margin-right: 50px;
+    min-width: 170px;
   }
-  #date { font-size: 15px; font-weight: 700; color: var(--fg); display: block; }
-  .location { font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; }
+  #date { font-size: 16px; font-weight: 700; color: var(--fg); display: block; margin-bottom: 2px; }
+  .location { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; }
 
   /* --- SECTION 3: 5-DAY FORECAST --- */
   .forecast-strip {
     display: flex;
-    gap: 22px;
-    padding: 0 25px;
+    gap: 25px;
+    padding: 0 30px;
     border-left: 1px solid rgba(255,255,255,0.1);
     border-right: 1px solid rgba(255,255,255,0.1);
+    margin-right: 40px;
   }
   .f-day { display: flex; flex-direction: column; align-items: center; }
-  .f-label { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 2px; }
-  .f-icon { font-size: 18px; margin-bottom: 1px; }
+  .f-label { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 3px; }
+  .f-icon { font-size: 18px; margin-bottom: 2px; }
   .f-temp { font-size: 12px; font-weight: 700; color: var(--fg); }
   .f-low { color: rgba(255,255,255,0.3); font-weight: 400; font-size: 10px; margin-left: 2px; }
 
@@ -74,13 +76,11 @@
   .current-section {
     display: flex;
     align-items: center;
-    gap: 12px;
-    min-width: 130px;
-    justify-content: flex-end;
+    gap: 15px;
   }
-  #w-icon { font-size: 32px; }
+  #w-icon { font-size: 34px; }
   .temp-main { text-align: left; line-height: 1; }
-  #temp { font-size: 28px; font-weight: 800; color: var(--fg); }
+  #temp { font-size: 30px; font-weight: 800; color: var(--fg); }
   #condition { font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; display: block; margin-top: 3px; }
 </style>
 </head>
@@ -118,7 +118,7 @@
     m = m < 10 ? '0' + m : m;
     document.getElementById('time').innerText = `${h}:${m}`;
     document.getElementById('ampm').innerText = ampm;
-    const options = { weekday: 'short', month: 'short', day: 'numeric' };
+    const options = { weekday: 'long', month: 'short', day: 'numeric' };
     document.getElementById('date').innerText = now.toLocaleDateString('en-US', options);
   }
 
@@ -134,13 +134,22 @@
     return "⛈️";
   }
 
+  function getDesc(code) {
+    if (code === 0) return "Clear";
+    if (code <= 3) return "Cloudy";
+    if (code <= 48) return "Foggy";
+    if (code <= 67) return "Rainy";
+    if (code <= 77) return "Snowy";
+    return "Stormy";
+  }
+
   async function updateWeather() {
     try {
       const res = await fetch(W_URL);
       const data = await res.json();
       document.getElementById('temp').innerText = Math.round(data.current.temperature_2m) + "°";
       document.getElementById('w-icon').innerText = getIcon(data.current.weather_code);
-      document.getElementById('condition').innerText = "Cloudy"; // Simple descriptor
+      document.getElementById('condition').innerText = getDesc(data.current.weather_code);
 
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       let fHtml = '';
