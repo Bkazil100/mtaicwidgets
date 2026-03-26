@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MTA Weather Dashboard</title>
+<title>MTA Weather Dashboard - Left Aligned</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -19,7 +19,7 @@
     color: var(--fg);
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start; /* Left Aligned */
     height: 60px;
     overflow: hidden;
   }
@@ -29,6 +29,7 @@
     width: 650px;
     height: 100%;
     align-items: center;
+    padding-left: 24px; /* Left Padding */
     opacity: 0;
     transition: opacity 0.8s ease;
   }
@@ -39,22 +40,23 @@
   .current-box {
     display: flex;
     align-items: center;
-    padding: 0 20px;
+    padding-right: 25px;
     border-right: 1px solid var(--border);
-    gap: 12px;
-    min-width: 180px;
+    gap: 15px;
   }
 
-  .c-icon { font-size: 32px; }
-  .c-temp { font-size: 28px; font-weight: 800; color: var(--accent); }
-  .c-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .c-icon { font-size: 34px; }
+  .c-temp { font-size: 30px; font-weight: 800; color: var(--accent); line-height: 1; }
+  
+  .c-details { display: flex; flex-direction: column; }
+  .c-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+  .c-feel { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.4); text-transform: uppercase; }
 
   /* Forecast Section */
   .forecast-box {
     display: flex;
-    flex-grow: 1;
-    justify-content: space-around;
-    padding: 0 10px;
+    gap: 35px; /* Spacing between forecast days */
+    padding-left: 25px;
   }
 
   .f-day {
@@ -64,11 +66,11 @@
     text-align: center;
   }
 
-  .f-name { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 2px; }
-  .f-icon { font-size: 18px; margin-bottom: 2px; }
+  .f-name { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 3px; }
+  .f-icon { font-size: 20px; margin-bottom: 2px; }
   .f-temps { font-size: 12px; font-weight: 600; }
   .high { color: var(--accent); }
-  .low { color: rgba(255,255,255,0.4); margin-left: 4px; }
+  .low { color: rgba(255,255,255,0.3); margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -76,9 +78,10 @@
   <div id="container">
     <div class="current-box">
       <div id="cur-icon" class="c-icon"></div>
-      <div class="c-info">
-        <div id="cur-temp" class="c-temp">--°</div>
+      <div class="c-details">
         <div class="c-label">Vaughan</div>
+        <div id="cur-temp" class="c-temp">--°</div>
+        <div id="cur-feel" class="c-feel">Feels --°</div>
       </div>
     </div>
 
@@ -88,7 +91,7 @@
 
 <script>
 const LAT = 43.8361, LON = -79.4982;
-const URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5`;
+const URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,apparent_temperature,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6`;
 
 function getIcon(code) {
   if (code === 0) return "☀️";
@@ -106,9 +109,10 @@ async function update() {
     
     // Set Current
     document.getElementById('cur-temp').innerText = Math.round(data.current.temperature_2m) + "°";
+    document.getElementById('cur-feel').innerText = "Feels " + Math.round(data.current.apparent_temperature) + "°";
     document.getElementById('cur-icon').innerText = getIcon(data.current.weather_code);
     
-    // Set Forecast (Skipping today, showing next 4 days)
+    // Set Forecast (Next 4 Days)
     let fHtml = '';
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     
@@ -132,7 +136,7 @@ async function update() {
 }
 
 update();
-setInterval(update, 1800000);
+setInterval(update, 1800000); // 30 min refresh
 </script>
 </body>
 </html>
