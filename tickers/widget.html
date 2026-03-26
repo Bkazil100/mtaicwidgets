@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MTA Broadcast Welcome Bar - Forecast</title>
+<title>MTA Balanced Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -31,63 +31,57 @@
     height: 100%;
     align-items: center;
     justify-content: space-between;
-    padding: 0 35px;
+    padding: 0 30px;
     box-sizing: border-box;
     background: linear-gradient(90deg, var(--bg) 0%, var(--glass) 50%, var(--bg) 100%);
     border-bottom: 1px solid var(--border);
   }
 
-  /* LEFT: Time */
+  /* --- SECTION 1: CLOCK --- */
   .clock-section {
     display: flex;
     align-items: baseline;
-    gap: 10px;
+    gap: 8px;
+    min-width: 150px;
+  }
+  #time { font-size: 42px; font-weight: 800; color: var(--fg); letter-spacing: -2px; }
+  #ampm { font-size: 14px; font-weight: 600; color: var(--accent); text-transform: uppercase; }
+
+  /* --- SECTION 2: DATE --- */
+  .date-section {
+    border-left: 1px solid rgba(255,255,255,0.1);
+    padding-left: 20px;
     min-width: 160px;
   }
-  #time { font-size: 48px; font-weight: 800; color: var(--fg); letter-spacing: -2.5px; line-height: 1; }
-  #ampm { font-size: 16px; font-weight: 600; color: var(--accent); text-transform: uppercase; }
+  #date { font-size: 15px; font-weight: 700; color: var(--fg); display: block; }
+  .location { font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; }
 
-  /* CENTER-LEFT: Date & Location */
-  .center-left {
-    padding-left: 25px;
-    border-left: 1px solid rgba(255,255,255,0.1);
-    margin-left: 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 180px;
-  }
-  #date { font-size: 16px; font-weight: 600; color: var(--fg); margin-bottom: 2px; }
-  .location { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; }
-
-  /* CENTER-RIGHT: 5-Day Forecast Strip */
+  /* --- SECTION 3: 5-DAY FORECAST --- */
   .forecast-strip {
     display: flex;
-    gap: 18px;
-    margin: 0 20px;
-    padding: 0 20px;
+    gap: 22px;
+    padding: 0 25px;
     border-left: 1px solid rgba(255,255,255,0.1);
+    border-right: 1px solid rgba(255,255,255,0.1);
   }
   .f-day { display: flex; flex-direction: column; align-items: center; }
   .f-label { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 2px; }
-  .f-icon { font-size: 16px; margin-bottom: 2px; }
-  .f-temp { font-size: 11px; font-weight: 700; color: var(--fg); }
+  .f-icon { font-size: 18px; margin-bottom: 1px; }
+  .f-temp { font-size: 12px; font-weight: 700; color: var(--fg); }
   .f-low { color: rgba(255,255,255,0.3); font-weight: 400; font-size: 10px; margin-left: 2px; }
 
-  /* RIGHT: Weather Capsule */
-  .weather-section {
+  /* --- SECTION 4: CURRENT --- */
+  .current-section {
     display: flex;
     align-items: center;
-    gap: 15px;
-    background: var(--glass);
-    padding: 10px 20px;
-    border-radius: 40px;
-    border: 1px solid rgba(245, 202, 115, 0.15);
+    gap: 12px;
+    min-width: 130px;
+    justify-content: flex-end;
   }
-  #w-icon { font-size: 30px; }
-  .temp-main { line-height: 1; text-align: left; }
+  #w-icon { font-size: 32px; }
+  .temp-main { text-align: left; line-height: 1; }
   #temp { font-size: 28px; font-weight: 800; color: var(--fg); }
-  #condition { font-size: 9px; font-weight: 600; color: var(--accent); text-transform: uppercase; display: block; margin-top: 2px; }
+  #condition { font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; display: block; margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -98,7 +92,7 @@
       <span id="ampm">--</span>
     </div>
 
-    <div class="center-left">
+    <div class="date-section">
       <span id="date">--</span>
       <span class="location">Vaughan Studio</span>
     </div>
@@ -106,7 +100,7 @@
     <div id="forecast-strip" class="forecast-strip">
       </div>
 
-    <div class="weather-section">
+    <div class="current-section">
       <div id="w-icon">☀️</div>
       <div class="temp-main">
         <span id="temp">--°</span>
@@ -118,15 +112,13 @@
 <script>
   function updateClock() {
     const now = new Date();
-    let h = now.getHours();
-    let m = now.getMinutes();
+    let h = now.getHours(), m = now.getMinutes();
     let ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
     m = m < 10 ? '0' + m : m;
     document.getElementById('time').innerText = `${h}:${m}`;
     document.getElementById('ampm').innerText = ampm;
-
-    const options = { weekday: 'long', month: 'long', day: 'numeric' };
+    const options = { weekday: 'short', month: 'short', day: 'numeric' };
     document.getElementById('date').innerText = now.toLocaleDateString('en-US', options);
   }
 
@@ -142,26 +134,14 @@
     return "⛈️";
   }
 
-  function getDesc(code) {
-    if (code === 0) return "Clear";
-    if (code <= 3) return "Cloudy";
-    if (code <= 48) return "Foggy";
-    if (code <= 67) return "Rainy";
-    if (code <= 77) return "Snowy";
-    return "Stormy";
-  }
-
   async function updateWeather() {
     try {
       const res = await fetch(W_URL);
       const data = await res.json();
-      
-      // Current Weather
       document.getElementById('temp').innerText = Math.round(data.current.temperature_2m) + "°";
       document.getElementById('w-icon').innerText = getIcon(data.current.weather_code);
-      document.getElementById('condition').innerText = getDesc(data.current.weather_code);
+      document.getElementById('condition').innerText = "Cloudy"; // Simple descriptor
 
-      // 5-Day Forecast
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       let fHtml = '';
       for (let i = 1; i <= 5; i++) {
@@ -174,7 +154,6 @@
           </div>`;
       }
       document.getElementById('forecast-strip').innerHTML = fHtml;
-
     } catch(e) { console.error(e); }
   }
 
